@@ -1,0 +1,10 @@
+# These are common file extensions for machine learning models. You can add or
+# remove extensions based on the specific types of models you are working with.
+*.dlc
+*.onnx
+*.pt
+*.tflite
+*.bin
+*.h5
+*.ckpt
+*.pb
