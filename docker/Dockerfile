@@ -102,7 +102,12 @@ RUN \
 # Installs the necessary Python packages for the project using pip.
 RUN \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
-        jupyterlab
+        jupyterlab \
+        libreyolo \
+        onnx==1.16.0 \
+        onnxruntime==1.18.0 \
+        onnxscript==0.1.0 \
+        numpy==1.26.4
 
 # Sets the default command to keep the container running indefinitely.
 CMD ["tail", "-f", "/dev/null"]
