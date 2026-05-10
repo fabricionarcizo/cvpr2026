@@ -67,10 +67,10 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 
 | Step | Description |
 |---|---|
-| **1. Imports** | Load `glob`, `os`, `random`, `torch`, `uuid`, `numpy`, `libreyolo`, and `PIL`. |
-| **2. Preprocessing function** | Define `preprocess()` — resize to 640 × 640 (bilinear), convert to RGB, normalize to `[0, 1]`, transpose HWC → CHW, add batch dimension. |
-| **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 100 images (`seed=42`), save each as a `.raw` binary file, and generate `raw/filenames.txt` for `qairt-quantizer`. |
-| **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, and export to ONNX (opset 18) with input `images` (1 × 3 × 640 × 640) and outputs `output_small`, `output_medium`, `output_large`. |
+| **1. Imports** | Load `cv2`, `glob`, `os`, `random`, `torch`, `uuid`, `numpy`, and `libreyolo`. |
+| **2. Preprocessing functions** | Define `letterbox()` — top-left letterbox resize to 640 × 640 with pad value 114, BGR color, 0–255 float32. Define `preprocess()` — calls `letterbox()` and transposes HWC → CHW. No normalization, no BGR→RGB conversion. |
+| **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 2000 images (`seed=42`), load each with `cv2.imread()` (BGR), preprocess, save as a `.raw` binary file (CHW layout), and generate `raw/filenames.txt` for `qairt-quantizer`. |
+| **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, and export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640) and single output `detections` (1 × 8400 × 85). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`. |
 | **7. INT8 quantization** | Apply post-training quantization (PTQ) using `qairt-quantizer` and the calibration `.raw` samples to produce an INT8 DLC. |
@@ -92,7 +92,7 @@ All files are written to `../models/` relative to the notebook working directory
 | File | Description |
 |---|---|
 | `LibreYOLOXs.pt` | Pre-trained PyTorch checkpoint (downloaded) |
-| `LibreYOLOXs.onnx` | ONNX export of the model (opset 18) |
+| `LibreYOLOXs.onnx` | ONNX export of the model (opset 13) |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT floating-point DLC |
 | `qairt/LibreYOLOXs_int8.dlc` | QAIRT INT8 quantized DLC |
 
@@ -113,8 +113,8 @@ interface.
 | Step | Description |
 |---|---|
 | **1. Imports** | Same libraries as the QAIRT notebook. |
-| **2. Preprocessing function** | Same `preprocess()` function as the QAIRT notebook. |
-| **3. Calibration dataset** | Same COCO 2017 val download, 100-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
+| **2. Preprocessing functions** | Same `letterbox()` and `preprocess()` functions as the QAIRT notebook. |
+| **3. Calibration dataset** | Same COCO 2017 val download, 2000-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
 | **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook (idempotent — skips if `LibreYOLOXs.onnx` already exists). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info`. |
@@ -151,24 +151,31 @@ All files are written to `../models/` relative to the notebook working directory
 
 Both notebooks share the following resources and conventions.
 
-### `preprocess()` function
+### `letterbox()` and `preprocess()` functions
 
 ```python
+def letterbox(image: np.ndarray, target: int = 640, pad_value: int = 114) -> tuple:
+    h, w = image.shape[:2]
+    ratio = min(target / h, target / w)
+    new_w, new_h = int(w * ratio), int(h * ratio)
+    resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+    padded = np.full((target, target, 3), pad_value, dtype=np.float32)
+    padded[:new_h, :new_w] = resized
+    return padded, ratio
+
 def preprocess(original_image: np.ndarray, size: int = 640) -> np.ndarray:
-    image = Image.fromarray(original_image).convert("RGB")
-    image = image.resize((size, size), Image.BILINEAR)
-    image = np.asarray(image).astype(np.float32) / 255.0
-    image = np.transpose(image, (2, 0, 1))  # HWC -> CHW
-    image = np.expand_dims(image, axis=0)   # CHW -> NCHW
-    return image
+    padded, _ = letterbox(original_image, size)
+    tensor = padded.transpose(2, 0, 1)  # HWC → CHW
+    return np.ascontiguousarray(tensor)
 ```
 
 | Property | Value |
 |---|---|
-| Output shape | `(1, 3, 640, 640)` (NCHW) |
+| Output shape | `(3, 640, 640)` (CHW) |
 | Data type | `float32` |
-| Value range | `[0.0, 1.0]` |
-| Resize method | Bilinear interpolation |
+| Value range | `[0.0, 255.0]` |
+| Color format | BGR (no BGR→RGB conversion) |
+| Resize method | Top-left letterbox with bilinear interpolation, pad value 114 |
 
 ### Calibration dataset
 
@@ -176,9 +183,10 @@ def preprocess(original_image: np.ndarray, size: int = 640) -> np.ndarray:
 |---|---|
 | Source | COCO 2017 validation set |
 | Download size | ~777 MB |
-| Images sampled | 100 |
+| Images sampled | 2000 |
 | Random seed | 42 |
-| Format | `.raw` (flat `float32` binary, NCHW layout) |
+| Image loader | `cv2.imread()` (BGR) |
+| Format | `.raw` (flat `float32` binary, CHW layout) |
 | Manifest | `raw/filenames.txt` |
 
 ### Idempotency

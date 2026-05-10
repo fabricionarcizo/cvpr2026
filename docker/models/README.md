@@ -51,7 +51,7 @@ running the notebooks or deploying to a device.
 | Framework | [LibreYOLO](https://github.com/LibreYOLO/libreyolo) |
 | Task | Object Detection |
 | Dataset | [COCO 2017](https://cocodataset.org) (80 classes) |
-| Input size | 640 × 640 (RGB) |
+| Input size | 640 × 640 (BGR) |
 | Base model | [LibreYOLO/LibreYOLOXs](https://huggingface.co/LibreYOLO/LibreYOLOXs) |
 | License | [MIT](https://opensource.org/licenses/MIT) |
 
@@ -84,13 +84,14 @@ on Hugging Face.
 | Name | `images` |
 | Shape | `1 × 3 × 640 × 640` (NCHW) |
 | Data type | `float32` |
-| Value range | `[0.0, 1.0]` |
-| Color order | RGB |
+| Value range | `[0.0, 255.0]` |
+| Color order | BGR |
 
 Preprocessing steps:
-1. Resize the image to **640 × 640** using bilinear interpolation.
-2. Convert to RGB and normalize pixel values to `[0, 1]` by dividing by `255.0`.
-3. Transpose from `HWC` to `CHW` and add a batch dimension (`NCHW`).
+1. **Letterbox-resize** the image to **640 × 640**: scale uniformly so the longest side fits 640, place the resized image at top-left, and fill the remaining area with constant value `114` (float32).
+2. Keep the BGR color order — **no BGR→RGB conversion**.
+3. Keep pixel values in the **0–255** range — **no division by 255**.
+4. Transpose from `HWC` to `CHW` (no batch dimension added for `.raw` calibration files; add a batch dimension for live inference).
 
 ### Outputs
 
@@ -233,8 +234,8 @@ a representative calibration dataset derived from the
 
 - **Source:** COCO 2017 validation images (~777 MB, 5,000 images)
 - **Samples used:** 1000 images selected randomly with `seed=42`
-- **Format:** `.raw` binary files — flat `float32` arrays with shape `(1, 3, 640, 640)` in NCHW layout
-- **Preprocessing:** resize to 640 × 640 (bilinear), normalize to `[0, 1]`
+- **Format:** `.raw` binary files — flat `float32` arrays with shape `(3, 640, 640)` in CHW layout
+- **Preprocessing:** top-left letterbox resize to 640 × 640 (bilinear, pad value 114), BGR color, 0–255 float32 (no normalization)
 
 ---
 
