@@ -156,14 +156,22 @@ class ObjectPostProcessor
                 medium.read(mediumScratch, 0, mediumScratch.size)
                 large.read(largeScratch, 0, largeScratch.size)
 
-                val scaleX = bitmap.width.toFloat() / config.inputNHWC[2]
-                val scaleY = bitmap.height.toFloat() / config.inputNHWC[1]
+                // Compute letterbox inverse transform so model-space coordinates map correctly
+                // back to the original (non-squished) camera frame.
+                val inputW = config.inputNHWC[2].toFloat()
+                val inputH = config.inputNHWC[1].toFloat()
+                val origW = bitmap.width.toFloat()
+                val origH = bitmap.height.toFloat()
+                val lbScale = minOf(inputW / origW, inputH / origH)
+                val padX = (inputW - origW * lbScale) / 2f
+                val padY = (inputH - origH * lbScale) / 2f
+                val invScale = 1f / lbScale
 
                 val results = ArrayList<ObjectResult>(NUM_DETECTIONS)
 
-                collectDetections(smallScratch, SMALL_NUM_DETECTIONS, SMALL_GRID, SMALL_STRIDE, scaleX, scaleY, threshold, results)
-                collectDetections(mediumScratch, MEDIUM_NUM_DETECTIONS, MEDIUM_GRID, MEDIUM_STRIDE, scaleX, scaleY, threshold, results)
-                collectDetections(largeScratch, LARGE_NUM_DETECTIONS, LARGE_GRID, LARGE_STRIDE, scaleX, scaleY, threshold, results)
+                collectDetections(smallScratch, SMALL_NUM_DETECTIONS, SMALL_GRID, SMALL_STRIDE, padX, padY, invScale, threshold, results)
+                collectDetections(mediumScratch, MEDIUM_NUM_DETECTIONS, MEDIUM_GRID, MEDIUM_STRIDE, padX, padY, invScale, threshold, results)
+                collectDetections(largeScratch, LARGE_NUM_DETECTIONS, LARGE_GRID, LARGE_STRIDE, padX, padY, invScale, threshold, results)
 
                 DetectionUtils.applyNMS(results, NMS.iouThreshold)
             } ?: emptyList()
@@ -182,8 +190,9 @@ class ObjectPostProcessor
          * @param numDetections The number of grid cells (detections) in this scale.
          * @param gridSize The side length of this scale's grid (80, 40, or 20).
          * @param stride The pixel stride for this scale (8, 16, or 32).
-         * @param scaleX Horizontal scale factor from model input space to original bitmap width.
-         * @param scaleY Vertical scale factor from model input space to original bitmap height.
+         * @param padX Horizontal letterbox padding in model-input pixels.
+         * @param padY Vertical letterbox padding in model-input pixels.
+         * @param invScale Reciprocal of the letterbox scale factor (original / model).
          * @param threshold Minimum confidence score (objectness × class score) to keep a detection.
          * @param results Accumulator list to append accepted [ObjectResult]s to.
          */
@@ -192,8 +201,9 @@ class ObjectPostProcessor
             numDetections: Int,
             gridSize: Int,
             stride: Int,
-            scaleX: Float,
-            scaleY: Float,
+            padX: Float,
+            padY: Float,
+            invScale: Float,
             threshold: Float,
             results: ArrayList<ObjectResult>,
         ) {
@@ -208,7 +218,7 @@ class ObjectPostProcessor
                 val score = objectness * tmpBestClass.score
 
                 if (score >= threshold) {
-                    val box = decodeBox(data, offset, i, gridSize, stride, scaleX, scaleY)
+                    val box = decodeBox(data, offset, i, gridSize, stride, padX, padY, invScale)
                     results.add(ObjectResult(classNames[tmpBestClass.id], score, box))
                 }
             }
@@ -223,18 +233,19 @@ class ObjectPostProcessor
          *   w  = exp(raw_w) * stride
          *   h  = exp(raw_h) * stride
          * ```
-         * The resulting center-format box is converted to corner format and scaled to the original
-         * bitmap dimensions.
+         * The letterbox padding ([padX], [padY]) is subtracted before applying [invScale] to
+         * convert from model-input space back to the original bitmap dimensions.
          *
          * @param data The flat scratch buffer containing detection attributes.
          * @param offset The starting index of this detection's attributes in [data].
          * @param cellIndex Linear cell index within this scale's grid (0 to numDetections−1).
          * @param gridSize The side length of this scale's grid (80, 40, or 20).
          * @param stride The pixel stride for this scale (8, 16, or 32).
-         * @param scaleX Horizontal scale factor from model input space to original bitmap width.
-         * @param scaleY Vertical scale factor from model input space to original bitmap height.
+         * @param padX Horizontal letterbox padding in model-input pixels.
+         * @param padY Vertical letterbox padding in model-input pixels.
+         * @param invScale Reciprocal of the letterbox scale factor (original / model).
          *
-         * @return A [RectF] with coordinates scaled to the original bitmap dimensions.
+         * @return A [RectF] with coordinates in the original bitmap's pixel space.
          */
         private fun decodeBox(
             data: FloatArray,
@@ -242,8 +253,9 @@ class ObjectPostProcessor
             cellIndex: Int,
             gridSize: Int,
             stride: Int,
-            scaleX: Float,
-            scaleY: Float,
+            padX: Float,
+            padY: Float,
+            invScale: Float,
         ): RectF {
             val gridX = (cellIndex % gridSize).toFloat()
             val gridY = (cellIndex / gridSize).toFloat()
@@ -254,10 +266,10 @@ class ObjectPostProcessor
             val halfH = exp(data[offset + INDEX_H].toDouble()).toFloat() * stride / 2f
 
             return RectF(
-                (cx - halfW) * scaleX,
-                (cy - halfH) * scaleY,
-                (cx + halfW) * scaleX,
-                (cy + halfH) * scaleY,
+                (cx - halfW - padX) * invScale,
+                (cy - halfH - padY) * invScale,
+                (cx + halfW - padX) * invScale,
+                (cy + halfH - padY) * invScale,
             )
         }
 
