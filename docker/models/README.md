@@ -66,12 +66,12 @@ on Hugging Face.
 | File | Format | Description |
 |---|---|---|
 | `LibreYOLOXs.pt` | PyTorch | Pre-trained LibreYOLOXs checkpoint. Downloaded from `LibreYOLO/LibreYOLOXs` and used as the entry point for all downstream conversions. |
-| `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True`. Single input `images` (shape `1 × 3 × 640 × 640`), single decoded output `detections` (shape `1 × 8400 × 85`). |
+| `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True` and a `SplitHead` wrapper. Single input `images` (shape `1 × 3 × 640 × 640`), two decoded outputs: `bboxes` (shape `1 × 8400 × 4`) and `scores` (shape `1 × 8400 × 81`). |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT DLC (FP32) | Floating-point DLC converted from the ONNX model using `qairt-converter` (QAIRT SDK v2.41.0.251128). |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8 weights, INT16 activations) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. INT16 activations prevent score collapse on DSP (see [Calibration Dataset](#calibration-dataset)). |
+| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8 weights and activations) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. Split outputs give each tensor its own INT8 scale, preventing score collapse on DSP (see [Calibration Dataset](#calibration-dataset)). |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE DLC (FP32) | Floating-point DLC converted from the ONNX model using `snpe-onnx-to-dlc`. |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8 weights, INT16 activations) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. INT16 activations prevent score collapse on DSP. |
-| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 weights, INT16 activations + HTP) | INT16-activation DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
+| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8 weights and activations) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. Split outputs give each tensor its own INT8 scale, preventing score collapse on DSP. |
+| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 weights and activations + HTP) | INT8 DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
 
 ---
 
@@ -95,12 +95,14 @@ Preprocessing steps:
 
 ### Outputs
 
-The model uses `head.export = True` to decode grid offsets inside the ONNX graph,
-producing a single flat output tensor:
+The model uses `head.export = True` to decode grid offsets inside the ONNX graph.
+A `SplitHead` wrapper further separates bounding-box coordinates from detection
+scores, producing two output tensors:
 
-| Output name | Shape | Description |
-|---|---|---|
-| `detections` | `1 × 8400 × 85` | All decoded detections across all scales |
+| Output name | Shape | Range | Description |
+|---|---|---|---|
+| `bboxes` | `1 × 8400 × 4` | 0 – 640 | Decoded bounding-box coordinates |
+| `scores` | `1 × 8400 × 81` | 0 – 1 | Objectness + 80 class probabilities |
 
 The 8400 rows correspond to anchor positions across the three detection scales:
 
@@ -110,16 +112,23 @@ The 8400 rows correspond to anchor positions across the three detection scales:
 | Medium objects | 40 × 40 | 1600 |
 | Large objects | 20 × 20 | 400 |
 
-Each of the 85 values per row is laid out as:
+**`bboxes`** layout per row:
 
 ```
-[cx, cy, w, h,  objectness,  class_0, class_1, ..., class_79]
-  4 bbox coords     1             80 class probabilities
+[cx, cy, w, h]
 ```
 
 - **`cx`, `cy`**: Centre x/y of the bounding box in the resized 640 × 640 coordinate space.
 - **`w`, `h`**: Width and height of the bounding box.
-- **`objectness`**: Confidence that a object is present (sigmoid applied).
+
+**`scores`** layout per row:
+
+```
+[objectness, class_0, class_1, ..., class_79]
+     1              80 class probabilities
+```
+
+- **`objectness`**: Confidence that an object is present (sigmoid applied).
 - **`class_0`…`class_79`**: Per-class probabilities for all 80 COCO categories.
 
 Post-processing steps required before use: confidence thresholding, `cxcywh → xyxy`
@@ -236,7 +245,7 @@ a representative calibration dataset derived from the
 - **Samples used:** 1000 images selected randomly with `seed=42`
 - **Format:** `.raw` binary files — flat `float32` arrays with shape `(3, 640, 640)` in CHW layout
 - **Preprocessing:** top-left letterbox resize to 640 × 640 (bilinear, pad value 114), BGR color, 0–255 float32 (no normalization)
-- **Activation bitwidth:** INT16 (`--act_bitwidth 16`) — required because the output tensor `detections [1, 8400, 85]` contains bounding-box coordinates (range 0–640) and sigmoid-activated scores (range 0–1) in the same tensor. INT8 per-tensor quantization would set a scale of ~2.5 per step, collapsing all score values to zero on DSP. INT16 (65 536 levels, scale ~0.01) preserves score precision for all backends including DSP/HTP.
+- **Quantization:** standard INT8 PTQ — the `SplitHead` ONNX wrapper gives `bboxes` and `scores` separate INT8 scales, so no `--act_bitwidth 16` flag is required
 
 ---
 
