@@ -268,8 +268,7 @@ class SnpeModel(
     private fun loadModelFromAssets(): NeuralNetwork? =
         try {
             application.assets.open(config.fileName).use { stream ->
-                val outputLayers = config.outputLayerNames.toTypedArray()
-                val model =
+                var builder =
                     SNPE
                         .NeuralNetworkBuilder(application)
                         .setRuntimeCheckOption(
@@ -278,13 +277,18 @@ class SnpeModel(
                             } else {
                                 NeuralNetwork.RuntimeCheckOption.NORMAL_CHECK
                             },
-                        ).setOutputLayers(*outputLayers)
-                        .setModel(stream, stream.available())
+                        ).setModel(stream, stream.available())
                         .setPerformanceProfile(NeuralNetwork.PerformanceProfile.DEFAULT)
                         .setRuntimeOrder(NeuralNetwork.Runtime.DSP)
                         .setCpuFallbackEnabled(false)
-                        .build()
-                model
+
+                // Only restrict outputs when explicit layer names are provided. If the list is
+                // empty the model's declared outputs are exposed automatically by SNPE.
+                if (config.outputLayerNames.isNotEmpty()) {
+                    builder = builder.setOutputLayers(*config.outputLayerNames.toTypedArray())
+                }
+
+                builder.build()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Model loading error", e)

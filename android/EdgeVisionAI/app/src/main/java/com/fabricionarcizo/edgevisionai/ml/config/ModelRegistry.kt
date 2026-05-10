@@ -40,7 +40,7 @@ object ModelRegistry {
             inputShape = intArrayOf(1, 3, 640, 640).toList(),
             isNchw = true,
             inputLayerName = "images",
-            outputLayerNames = listOf("/head/Concat_9"),
+            outputLayerNames = emptyList(),
             outputAlternativeNames = listOf("detections"),
         )
 }
