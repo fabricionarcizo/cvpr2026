@@ -37,8 +37,8 @@ object ModelRegistry {
     val objectDetectorConfig =
         ModelConfig(
             fileName = "LibreYOLOXs_int8_sm7325.dlc",
-            inputShape = intArrayOf(1, 3, 640, 640).toList(),
-            isNchw = true,
+            inputShape = intArrayOf(1, 640, 640, 3).toList(),
+            isNchw = false,
             inputLayerName = "images",
             outputLayerNames = emptyList(),
             outputAlternativeNames = listOf("detections"),
