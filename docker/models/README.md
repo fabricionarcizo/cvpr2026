@@ -66,11 +66,11 @@ on Hugging Face.
 | File | Format | Description |
 |---|---|---|
 | `LibreYOLOXs.pt` | PyTorch | Pre-trained LibreYOLOXs checkpoint. Downloaded from `LibreYOLO/LibreYOLOXs` and used as the entry point for all downstream conversions. |
-| `LibreYOLOXs.onnx` | ONNX (opset 18) | ONNX export of the PyTorch checkpoint. Single input `images` (shape `1 × 3 × 640 × 640`), three output heads: `output_small`, `output_medium`, `output_large`. |
+| `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True`. Single input `images` (shape `1 × 3 × 640 × 640`), single decoded output `detections` (shape `1 × 8400 × 85`). |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT DLC (FP32) | Floating-point DLC converted from the ONNX model using `qairt-converter` (QAIRT SDK v2.41.0.251128). |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8) | Post-training quantized DLC produced by `qairt-quantizer` using 100 COCO 2017 validation images as calibration data. |
+| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE DLC (FP32) | Floating-point DLC converted from the ONNX model using `snpe-onnx-to-dlc`. |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 100 COCO 2017 validation images as calibration data. |
+| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. |
 | `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 + HTP) | INT8 DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
 
 ---
@@ -94,16 +94,35 @@ Preprocessing steps:
 
 ### Outputs
 
-The model produces three detection heads at different spatial resolutions to
-handle objects of varying sizes:
+The model uses `head.export = True` to decode grid offsets inside the ONNX graph,
+producing a single flat output tensor:
 
-| Output name | Shape | Purpose |
+| Output name | Shape | Description |
 |---|---|---|
-| `output_small` | `1 × A × 80 × 80` | Detects **small** objects (fine-grained grid) |
-| `output_medium` | `1 × A × 40 × 40` | Detects **medium** objects |
-| `output_large` | `1 × A × 20 × 20` | Detects **large** objects (coarse grid) |
+| `detections` | `1 × 8400 × 85` | All decoded detections across all scales |
 
-`A` is the number of anchors × (5 + num_classes) values per cell.
+The 8400 rows correspond to anchor positions across the three detection scales:
+
+| Scale | Grid | Anchors |
+|---|---|---|
+| Small objects | 80 × 80 | 6400 |
+| Medium objects | 40 × 40 | 1600 |
+| Large objects | 20 × 20 | 400 |
+
+Each of the 85 values per row is laid out as:
+
+```
+[cx, cy, w, h,  objectness,  class_0, class_1, ..., class_79]
+  4 bbox coords     1             80 class probabilities
+```
+
+- **`cx`, `cy`**: Centre x/y of the bounding box in the resized 640 × 640 coordinate space.
+- **`w`, `h`**: Width and height of the bounding box.
+- **`objectness`**: Confidence that a object is present (sigmoid applied).
+- **`class_0`…`class_79`**: Per-class probabilities for all 80 COCO categories.
+
+Post-processing steps required before use: confidence thresholding, `cxcywh → xyxy`
+conversion, scaling back to the original image dimensions, and Non-Maximum Suppression (NMS).
 
 ---
 
@@ -171,7 +190,7 @@ The optimization pipeline is illustrated below:
 LibreYOLO/LibreYOLOXs (HuggingFace)
         │
         ▼
-LibreYOLOXs.pt  ──── torch.onnx.export (opset 18) ────► LibreYOLOXs.onnx
+LibreYOLOXs.pt  ──── torch.onnx.export (opset 13) ────► LibreYOLOXs.onnx
                                                                   │
                           ┌───────────────────────────────────────┤
                           │                                       │
@@ -213,7 +232,7 @@ a representative calibration dataset derived from the
 [COCO 2017 validation set](https://cocodataset.org/#download):
 
 - **Source:** COCO 2017 validation images (~777 MB, 5,000 images)
-- **Samples used:** 100 images selected randomly with `seed=42`
+- **Samples used:** 1000 images selected randomly with `seed=42`
 - **Format:** `.raw` binary files — flat `float32` arrays with shape `(1, 3, 640, 640)` in NCHW layout
 - **Preprocessing:** resize to 640 × 640 (bilinear), normalize to `[0, 1]`
 
