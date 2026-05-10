@@ -73,7 +73,7 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 | **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, and export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640) and single output `detections` (1 × 8400 × 85). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`. |
-| **7. INT8 quantization** | Apply post-training quantization (PTQ) using `qairt-quantizer` and the calibration `.raw` samples to produce an INT8 DLC. |
+| **7. INT8 quantization** | Apply PTQ using `qairt-quantizer` with the calibration `.raw` samples and `--act_bitwidth 16`. Using 16-bit integer activations is required to prevent sigmoid-activated objectness and class scores (range 0–1) from being quantized to zero by the coarser INT8 scale set by the larger bounding-box coordinates (range 0–640). |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC using `qairt-dlc-info` to confirm quantized layer types and reduced model size. |
 
 ### CLI Tools
@@ -82,7 +82,7 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 |---|---|
 | `qairt-converter` | Converts an ONNX model to QAIRT's DLC format (FP32) |
 | `qairt-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `qairt-quantizer` | Applies post-training INT8 quantization using a calibration dataset |
+| `qairt-quantizer` | Applies post-training quantization using a calibration dataset; `--act_bitwidth 16` prevents score collapse on DSP |
 
 ### Output Files
 
@@ -94,7 +94,7 @@ All files are written to `../models/` relative to the notebook working directory
 | `LibreYOLOXs.pt` | Pre-trained PyTorch checkpoint (downloaded) |
 | `LibreYOLOXs.onnx` | ONNX export of the model (opset 13) |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT floating-point DLC |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT INT8 quantized DLC |
+| `qairt/LibreYOLOXs_int8.dlc` | QAIRT quantized DLC (INT8 weights, INT16 activations) |
 
 ---
 
@@ -118,7 +118,7 @@ interface.
 | **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook (idempotent — skips if `LibreYOLOXs.onnx` already exists). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info`. |
-| **7. INT8 quantization** | Apply post-training quantization using `snpe-dlc-quantize` and the calibration `.raw` samples. |
+| **7. INT8 quantization** | Apply PTQ using `snpe-dlc-quantize` with the calibration `.raw` samples and `--act_bitwidth 16`. Using 16-bit integer activations is required to prevent sigmoid-activated objectness and class scores (range 0–1) from being quantized to zero by the coarser INT8 scale set by the larger bounding-box coordinates (range 0–640). |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC with `snpe-dlc-info`. |
 | **9. HTP graph compilation** | Compile the INT8 DLC offline for the **Hexagon Tensor Processor (HTP)** on the **Snapdragon 778G (sm7325)** using `snpe-dlc-graph-prepare`. Produces a pre-compiled DLC for maximum HTP utilization on-device. |
 | **10. HTP DLC inspection** | Verify the compiled DLC with `snpe-dlc-info` to confirm HTP-specific optimizations. |
@@ -129,7 +129,7 @@ interface.
 |---|---|
 | `snpe-onnx-to-dlc` | Converts an ONNX model to SNPE's DLC format (FP32) |
 | `snpe-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `snpe-dlc-quantize` | Applies post-training INT8 quantization using a calibration dataset |
+| `snpe-dlc-quantize` | Applies post-training quantization using a calibration dataset; `--act_bitwidth 16` prevents score collapse on DSP |
 | `snpe-dlc-graph-prepare` | Compiles the DLC graph offline for a specific Snapdragon HTP SoC |
 
 ### Output Files
@@ -142,8 +142,8 @@ All files are written to `../models/` relative to the notebook working directory
 | `LibreYOLOXs.pt` | Pre-trained PyTorch checkpoint (shared with QAIRT notebook) |
 | `LibreYOLOXs.onnx` | ONNX export of the model (shared with QAIRT notebook) |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE floating-point DLC |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE INT8 quantized DLC |
-| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE INT8 DLC with offline HTP compilation for Snapdragon 778G |
+| `snpe/LibreYOLOXs_int8.dlc` | SNPE quantized DLC (INT8 weights, INT16 activations) |
+| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE quantized DLC with offline HTP compilation for Snapdragon 778G (INT8 weights, INT16 activations) |
 
 ---
 

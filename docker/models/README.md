@@ -68,10 +68,10 @@ on Hugging Face.
 | `LibreYOLOXs.pt` | PyTorch | Pre-trained LibreYOLOXs checkpoint. Downloaded from `LibreYOLO/LibreYOLOXs` and used as the entry point for all downstream conversions. |
 | `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True`. Single input `images` (shape `1 × 3 × 640 × 640`), single decoded output `detections` (shape `1 × 8400 × 85`). |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT DLC (FP32) | Floating-point DLC converted from the ONNX model using `qairt-converter` (QAIRT SDK v2.41.0.251128). |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. |
+| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8 weights, INT16 activations) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. INT16 activations prevent score collapse on DSP (see [Calibration Dataset](#calibration-dataset)). |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE DLC (FP32) | Floating-point DLC converted from the ONNX model using `snpe-onnx-to-dlc`. |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. |
-| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 + HTP) | INT8 DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
+| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8 weights, INT16 activations) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. INT16 activations prevent score collapse on DSP. |
+| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 weights, INT16 activations + HTP) | INT16-activation DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
 
 ---
 
@@ -236,6 +236,7 @@ a representative calibration dataset derived from the
 - **Samples used:** 1000 images selected randomly with `seed=42`
 - **Format:** `.raw` binary files — flat `float32` arrays with shape `(3, 640, 640)` in CHW layout
 - **Preprocessing:** top-left letterbox resize to 640 × 640 (bilinear, pad value 114), BGR color, 0–255 float32 (no normalization)
+- **Activation bitwidth:** INT16 (`--act_bitwidth 16`) — required because the output tensor `detections [1, 8400, 85]` contains bounding-box coordinates (range 0–640) and sigmoid-activated scores (range 0–1) in the same tensor. INT8 per-tensor quantization would set a scale of ~2.5 per step, collapsing all score values to zero on DSP. INT16 (65 536 levels, scale ~0.01) preserves score precision for all backends including DSP/HTP.
 
 ---
 
