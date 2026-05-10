@@ -449,8 +449,8 @@ class SnpeModel(
 
         val canvas = reusableCanvas!!
 
-        // Fill with neutral gray matching NEUTRAL_GRAY_VALUE (128 / 255 ≈ 0.502).
-        canvas.drawColor(Color.rgb(128, 128, 128))
+        // Fill with neutral gray matching the YOLOX training letterbox value (114 / 255 ≈ 0.447).
+        canvas.drawColor(Color.rgb(114, 114, 114))
 
         // Uniform scale to fit; centre-align in both axes.
         val scale = minOf(inputW.toFloat() / src.width, inputH.toFloat() / src.height)

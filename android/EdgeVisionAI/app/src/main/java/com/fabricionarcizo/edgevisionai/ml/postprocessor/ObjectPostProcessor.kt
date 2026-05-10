@@ -51,11 +51,11 @@ import javax.inject.Inject
  * Post-processor for multi-scale YOLOX object detection models.
  *
  * Reads three output tensors (`output_small`, `output_medium`, `output_large`) each with shape
- * [1, H, W, 85]. Each detection encodes [cx_raw, cy_raw, w_raw, h_raw, obj_logit,
- * cls_logit0..cls_logit79]. The model outputs raw logits — sigmoid is applied in this
- * post-processor for objectness and class scores, and YOLOX anchor-free grid decoding is
- * applied to the bounding box coordinates. The final confidence score is
- * sigmoid(obj_logit) × sigmoid(max_cls_logit). Bounding boxes are decoded from raw offsets to
+ * [1, H, W, 85]. Each detection encodes [cx_raw, cy_raw, w_raw, h_raw, sigmoid(obj),
+ * sigmoid(cls0)..sigmoid(cls79)]. The model applies sigmoid to objectness and class scores
+ * internally before export, so this post-processor reads them directly (clamped to [0, 1]).
+ * YOLOX anchor-free grid decoding is applied to the bounding box coordinates. The final
+ * confidence score is obj × max_cls_score. Bounding boxes are decoded from raw offsets to
  * absolute coordinates and rescaled to the original bitmap dimensions before NMS is applied.
  *
  * @property config The model configuration containing input/output layer names and shapes.
@@ -91,7 +91,10 @@ class ObjectPostProcessor
              */
             private const val INDEX_H = 3
 
-            /** Applies the sigmoid function to [x], returning a value in (0, 1). */
+            /** Applies the sigmoid function to [x], returning a value in (0, 1). Kept for
+             *  reference — not used in normal post-processing since the model applies sigmoid
+             *  internally before export. */
+            @Suppress("unused")
             private fun sigmoid(x: Float): Float =
                 (1.0 / (1.0 + exp(-x.toDouble()))).toFloat()
         }
@@ -181,10 +184,9 @@ class ObjectPostProcessor
          * Iterates over all detections in one scale's scratch buffer and appends qualifying
          * detections to [results].
          *
-         * Sigmoid is applied to the raw objectness and class logits read from [data] because the
-         * model outputs pre-sigmoid values (the INT8 quantization absorbs the sigmoid range,
-         * resulting in dequantized values that may be negative). YOLOX anchor-free grid decoding
-         * is applied to the bounding box coordinates.
+         * Objectness and class scores are read directly (the model already applies sigmoid
+         * internally before export) and clamped to [0, 1] to guard against INT8 dequantization
+         * artefacts. YOLOX anchor-free grid decoding is applied to the bounding box coordinates.
          *
          * @param data The flat scratch buffer for this scale (numDetections × NUM_ATTRIBUTES).
          * @param numDetections The number of grid cells (detections) in this scale.
@@ -209,7 +211,7 @@ class ObjectPostProcessor
         ) {
             for (i in 0 until numDetections) {
                 val offset = i * NUM_ATTRIBUTES
-                val objectness = sigmoid(data[offset + OBJECTNESS_INDEX])
+                val objectness = data[offset + OBJECTNESS_INDEX].coerceIn(0f, 1f)
 
                 // Early reject: skip cells with negligible objectness to reduce work.
                 if (objectness < 0.01f) continue
@@ -274,8 +276,8 @@ class ObjectPostProcessor
         }
 
         /**
-         * Finds the class with the highest sigmoid-activated score for the detection at [offset]
-         * in [data]. Sigmoid is applied to raw class logits before comparison.
+         * Finds the class with the highest score for the detection at [offset] in [data].
+         * Values are clamped to [0, 1] since the model applies sigmoid before export.
          *
          * @param data The flat scratch buffer containing detection attributes.
          * @param offset The starting index of this detection's attributes in [data].
@@ -289,10 +291,10 @@ class ObjectPostProcessor
             val base = offset + CLASS_OFFSET
 
             var best = 0
-            var max = sigmoid(data[base])
+            var max = data[base].coerceIn(0f, 1f)
 
             for (i in 1 until NUM_CLASSES) {
-                val score = sigmoid(data[base + i])
+                val score = data[base + i].coerceIn(0f, 1f)
                 if (score > max) {
                     max = score
                     best = i
