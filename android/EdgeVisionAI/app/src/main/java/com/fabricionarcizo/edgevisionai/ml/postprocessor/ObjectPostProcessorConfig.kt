@@ -30,9 +30,16 @@ import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
  */
 object ObjectPostProcessorConfig {
     /**
-     * Number of detections output by the model.
+     * Number of anchor predictions produced by YOLOX-S at 640×640 input
+     * (80×80 + 40×40 + 20×20 = 8400).
      */
-    const val NUM_DETECTIONS = 2100
+    const val NUM_DETECTIONS = 8400
+
+    /**
+     * Total number of values per detection in the raw YOLOX output tensor
+     * (cx, cy, w, h, obj_score + 80 class scores = 85).
+     */
+    const val NUM_OUTPUTS = 85
 
     /**
      * Number of corners in a bounding box.
@@ -43,6 +50,16 @@ object ObjectPostProcessorConfig {
      * Number of classes the model can predict.
      */
     const val NUM_CLASSES = 80
+
+    /**
+     * Index of the objectness score within each YOLOX detection row.
+     */
+    const val OBJ_SCORE_INDEX = 4
+
+    /**
+     * Starting index of the per-class scores within each YOLOX detection row.
+     */
+    const val CLASS_SCORE_START = 5
 
     /**
      * Non-Maximum Suppression (NMS) configuration.

@@ -27,14 +27,14 @@ package com.fabricionarcizo.edgevisionai.ml.postprocessor.common
  *      boxes.
  */
 data class NmsConfig(
-    val iouThreshold: Float = 0.2f,
+    val iouThreshold: Float = 0.45f,
 ) {
     /**
      * Companion object containing default NMS configuration.
      */
     companion object {
         /**
-         * Default NMS configuration with an IoU threshold of 0.2.
+         * Default NMS configuration with an IoU threshold of 0.45 (matches YOLOX reference).
          */
         val DEFAULT = NmsConfig()
     }

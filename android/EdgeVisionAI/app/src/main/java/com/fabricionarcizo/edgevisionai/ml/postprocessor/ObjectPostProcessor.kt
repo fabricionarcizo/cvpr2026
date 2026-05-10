@@ -26,10 +26,12 @@ import com.fabricionarcizo.edgevisionai.di.ml.ObjectDetection
 import com.fabricionarcizo.edgevisionai.ml.api.InferenceEngine
 import com.fabricionarcizo.edgevisionai.ml.api.TensorOutputs
 import com.fabricionarcizo.edgevisionai.ml.config.ModelConfig
+import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.CLASS_SCORE_START
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NMS
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_CLASSES
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_CORNERS
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_DETECTIONS
+import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_OUTPUTS
+import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.OBJ_SCORE_INDEX
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.DetectionUtils
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.PostProcessor
 import com.fabricionarcizo.edgevisionai.ml.results.ObjectResult
@@ -52,75 +54,24 @@ class ObjectPostProcessor
         @param:ObjectDetection private val classNames: List<String>,
     ) : PostProcessor<List<ObjectResult>> {
         /**
-         * Companion object containing constants and helper methods for the post-processor.
+         * Flat scratch buffer for the single YOLOX output tensor [NUM_DETECTIONS × NUM_OUTPUTS].
          */
-        companion object {
-            /**
-             * Index of the x1 coordinate in the bounding box array.
-             */
-            private const val INDEX_X1 = 0
-
-            /**
-             * Index of the y1 coordinate in the bounding box array.
-             */
-            private const val INDEX_Y1 = 1
-
-            /**
-             * Index of the x2 coordinate in the bounding box array.
-             */
-            private const val INDEX_X2 = 2
-
-            /**
-             * Index of the y2 coordinate in the bounding box array.
-             */
-            private const val INDEX_Y2 = 3
-
-            /**
-             * Starting index for class scores in the output array.
-             */
-            private const val START_CLASS_INDEX = 1
-        }
+        private val outputScratch = FloatArray(NUM_DETECTIONS * NUM_OUTPUTS)
 
         /**
-         * Number of detections output by the model.
-         */
-        private val boxesScratch = FloatArray(NUM_DETECTIONS * NUM_CORNERS)
-
-        /**
-         * Number of classes the model can predict.
-         */
-        private val classScoresScratch = FloatArray(NUM_DETECTIONS * NUM_CLASSES)
-
-        /**
-         * Data class to hold the best class index and its corresponding score.
+         * Processes the YOLOX model output to extract detection results.
          *
-         * @param id The index of the best class.
-         * @param score The confidence score of the best class.
-         */
-        private data class BestClass(
-            var id: Int = 0,
-            var score: Float = 0f,
-        )
-
-        /**
-         * Temporary instance to avoid repeated allocations during best class search.
-         */
-        private val tmpBestClass = BestClass()
-
-        /**
-         * Processes the model output to extract detection results.
-         *
-         * This method processes the input bitmap, runs inference, reads output tensors for bounding
-         * boxes and class scores, and constructs detection results above the confidence threshold.
-         * It also rescales the bounding boxes to match the original bitmap dimensions and applies
-         * Non-Maximum Suppression (NMS) to reduce redundant detections.
+         * YOLOX produces a single tensor of shape [NUM_DETECTIONS, NUM_OUTPUTS] (e.g. [8400, 85]).
+         * Each row contains: cx, cy, w, h, obj_score, class_scores[80].
+         * Confidence = obj_score × max(class_scores). Coordinates are in the 640-pixel input space
+         * and are unscaled back to original bitmap dimensions using the letterbox ratio.
          *
          * @param engine The inference engine to run the model.
-         * @param bitmap The original input image.
+         * @param bitmap The original input image (before letterboxing).
          * @param threshold The confidence threshold to filter results.
          *
          * @return A list of [ObjectResult] containing detected object labels, confidence scores,
-         *      and bounding boxes.
+         *      and bounding boxes in original bitmap coordinates.
          */
         override fun process(
             engine: InferenceEngine<TensorOutputs>,
@@ -128,100 +79,62 @@ class ObjectPostProcessor
             threshold: Float,
         ): List<ObjectResult> {
             return engine.infer(bitmap) { output ->
-                val boxes = output[config.outputAlternativeNames[0]]
-                val classes = output[config.outputAlternativeNames[1]]
+                val tensor = output[config.outputAlternativeNames[0]] ?: return@infer emptyList()
 
-                // Check for null outputs.
-                if (boxes == null || classes == null) return@infer emptyList()
+                tensor.read(outputScratch, 0, outputScratch.size)
 
-                boxes.read(boxesScratch, 0, boxesScratch.size)
-                classes.read(classScoresScratch, 0, classScoresScratch.size)
+                // Letterbox ratio: min(inputW / bitmapW, inputH / bitmapH).
+                // Dividing 640-space coordinates by this ratio maps them back to bitmap space.
+                val inputW = config.inputNHWC[2].toFloat()
+                val inputH = config.inputNHWC[1].toFloat()
+                val ratio = minOf(inputW / bitmap.width, inputH / bitmap.height)
+                val invRatio = 1f / ratio
 
-                val scaleX = bitmap.width.toFloat() / config.inputNHWC[2]
-                val scaleY = bitmap.height.toFloat() / config.inputNHWC[1]
+                val origW = bitmap.width.toFloat()
+                val origH = bitmap.height.toFloat()
 
                 val results = ArrayList<ObjectResult>(NUM_DETECTIONS)
 
                 for (i in 0 until NUM_DETECTIONS) {
-                    val box = decodeBox(i, boxesScratch, scaleX, scaleY)
+                    val base = i * NUM_OUTPUTS
 
-                    selectBestClass(i, classScoresScratch, tmpBestClass)
-                    val bestId = tmpBestClass.id
-                    val bestScore = tmpBestClass.score
+                    val objScore = outputScratch[base + OBJ_SCORE_INDEX]
 
-                    if (box != null && bestScore >= threshold) {
-                        val label = classNames[bestId]
-                        results.add(ObjectResult(label, bestScore, box))
+                    // Fast pre-filter: skip if objectness alone is below threshold.
+                    if (objScore < threshold) continue
+
+                    // Find best class and compute final confidence.
+                    var bestClassId = 0
+                    var bestClassScore = outputScratch[base + CLASS_SCORE_START]
+                    for (j in 1 until NUM_CLASSES) {
+                        val s = outputScratch[base + CLASS_SCORE_START + j]
+                        if (s > bestClassScore) {
+                            bestClassScore = s
+                            bestClassId = j
+                        }
                     }
+
+                    val confidence = objScore * bestClassScore
+                    if (confidence < threshold) continue
+
+                    // Decode center-format box (cx, cy, w, h) → corner-format (x1, y1, x2, y2).
+                    val cx = outputScratch[base]
+                    val cy = outputScratch[base + 1]
+                    val bw = outputScratch[base + 2]
+                    val bh = outputScratch[base + 3]
+
+                    // Scale from 640-pixel space back to original bitmap dimensions.
+                    val x1 = ((cx - bw * 0.5f) * invRatio).coerceIn(0f, origW)
+                    val y1 = ((cy - bh * 0.5f) * invRatio).coerceIn(0f, origH)
+                    val x2 = ((cx + bw * 0.5f) * invRatio).coerceIn(0f, origW)
+                    val y2 = ((cy + bh * 0.5f) * invRatio).coerceIn(0f, origH)
+
+                    if (x2 <= x1 || y2 <= y1) continue
+
+                    results.add(ObjectResult(classNames[bestClassId], confidence, RectF(x1, y1, x2, y2)))
                 }
 
                 DetectionUtils.applyNMS(results.toMutableList(), NMS.iouThreshold)
             } ?: emptyList()
-        }
-
-        /**
-         * Creates and scales a RectF from a 4-element sequence within a FloatArray.
-         *
-         * @param detectionIndex The index of the detection to process.
-         * @param boxArray The source array containing bounding box coordinates (y1, x1, y2, x2 or
-         *      similar).
-         * @param scaleX The scaling factor for x-coordinates.
-         * @param scaleY The scaling factor for y-coordinates.
-         *
-         * @return A scaled RectF, or null if the array access would be out of bounds.
-         */
-        private fun decodeBox(
-            detectionIndex: Int,
-            boxArray: FloatArray,
-            scaleX: Float,
-            scaleY: Float,
-        ): RectF? {
-            // Calculate the starting index for the bounding box coordinates.
-            val boxOffset = detectionIndex * NUM_CORNERS
-
-            // Safety check: Ensure there are 4 elements available starting from boxOffset.
-            if (boxOffset < 0 || boxOffset + INDEX_Y2 >= boxArray.size) {
-                return null
-            }
-
-            val x1 = boxArray[boxOffset + INDEX_X1] * scaleX
-            val y1 = boxArray[boxOffset + INDEX_Y1] * scaleY
-            val x2 = boxArray[boxOffset + INDEX_X2] * scaleX
-            val y2 = boxArray[boxOffset + INDEX_Y2] * scaleY
-
-            return RectF(x1, y1, x2, y2)
-        }
-
-        /**
-         * Selects the class with the highest score for a given detection.
-         *
-         * @param detectionIndex The index of the detection to process.
-         * @param data The array containing class scores for all detections.
-         * @param out An instance of [BestClass] to hold the result.
-         */
-        private fun selectBestClass(
-            detectionIndex: Int,
-            data: FloatArray,
-            out: BestClass,
-        ) {
-            val offset = detectionIndex * NUM_CLASSES
-
-            var best = 0
-            var max = data[offset]
-
-            var i = START_CLASS_INDEX
-            var idx = offset + START_CLASS_INDEX
-            while (i < NUM_CLASSES) {
-                val score = data[idx]
-                if (score > max) {
-                    max = score
-                    best = i
-                }
-                i++
-                idx++
-            }
-
-            out.id = best
-            out.score = max
         }
     }

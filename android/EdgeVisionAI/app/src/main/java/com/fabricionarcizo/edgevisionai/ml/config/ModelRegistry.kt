@@ -30,9 +30,10 @@ package com.fabricionarcizo.edgevisionai.ml.config
  */
 object ModelRegistry {
     /**
-     * Configuration for the YOLO-NAS-S-INT8 model.
+     * Configuration for the LibreYOLOXs INT8 quantized model (Qualcomm SM7325).
      *
-     * Uses direct coordinate prediction without anchor generation.
+     * YOLOX produces a single combined output tensor [8400, 85]:
+     * cx, cy, w, h, obj_score, class_scores[80].
      */
     val objectDetectorConfig =
         ModelConfig(

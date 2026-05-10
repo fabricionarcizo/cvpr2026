@@ -45,17 +45,12 @@ class BitmapRgbFloatPreprocessor {
         private const val BYTE_MASK = 0xFF
 
         /**
-         * Scale factor for normalizing pixel values to [0, 1].
-         */
-        private const val NORMALIZE_SCALE = 1 / 255.0f
-
-        /**
          * Threshold to determine if a frame is considered "black".
          */
         private const val BLACK_FRAME_THRESHOLD_PER_PIXEL = 13
 
         /**
-         * Offset for the red channel in the pixel data.
+         * Offset for the red channel in the ARGB bitmap byte stream (copyPixelsToBuffer order).
          */
         private const val RED_OFFSET = 0
 
@@ -141,8 +136,11 @@ class BitmapRgbFloatPreprocessor {
     }
 
     /**
-     * Sums the blue channel values from the input pixel array while converting RGBA to normalized
-     * RGB.
+     * Sums the blue channel values from the input pixel array while converting RGBA to raw-value
+     * BGR (YOLOX expects BGR channels at 0–255 float, no normalization).
+     *
+     * Android's ARGB_8888 bitmap stores bytes as [R, G, B, A] per pixel when copied with
+     * copyPixelsToBuffer. We reorder them to BGR for the model.
      *
      * @param pixelCount The number of pixels to process.
      * @param inputArray The input byte array containing pixel data in RGBA format.
@@ -163,9 +161,10 @@ class BitmapRgbFloatPreprocessor {
             val green = inputArray[srcIndex + GREEN_OFFSET].toInt() and BYTE_MASK
             val blue = inputArray[srcIndex + BLUE_OFFSET].toInt() and BYTE_MASK
 
-            tempFloatBuffer[dstIndex] = NORMALIZE_SCALE * red
-            tempFloatBuffer[dstIndex + 1] = NORMALIZE_SCALE * green
-            tempFloatBuffer[dstIndex + 2] = NORMALIZE_SCALE * blue
+            // YOLOX expects BGR channel order at raw 0–255 scale (no /255 normalization).
+            tempFloatBuffer[dstIndex] = blue.toFloat()
+            tempFloatBuffer[dstIndex + 1] = green.toFloat()
+            tempFloatBuffer[dstIndex + 2] = red.toFloat()
 
             blueSum += blue
         }

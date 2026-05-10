@@ -83,9 +83,14 @@ class SnpeModel(
         private const val CHANNELS_RGB = 3
 
         /**
-         * Neutral gray value for normalization.
+         * Neutral gray value matching the YOLOX letterbox pad value (0–255 scale).
          */
-        private const val NEUTRAL_GRAY_VALUE = 0.5f
+        private const val NEUTRAL_GRAY_VALUE = 114f
+
+        /**
+         * Letterbox padding color (matches YOLOX convention: constant 114 gray).
+         */
+        private const val LETTERBOX_PAD = 114
     }
 
     /**
@@ -117,11 +122,6 @@ class SnpeModel(
      * Input height dimension.
      */
     private val inputH = config.inputNHWC[1]
-
-    /**
-     * Destination rectangle for bitmap resizing.
-     */
-    private val dstRect = Rect(0, 0, inputW, inputH)
 
     /**
      * Paint object with bitmap filtering enabled.
@@ -427,15 +427,15 @@ class SnpeModel(
     }
 
     /**
-     * Retrieves a reusable input bitmap resized to the model's input dimensions.
+     * Retrieves a reusable input bitmap prepared with YOLOX-style letterbox preprocessing.
      *
-     * This method checks if a reusable bitmap and canvas already exist. If not, it creates them.
-     * It then draws the source bitmap onto the reusable bitmap using the predefined destination
-     * rectangle and paint settings.
+     * The source bitmap is scaled to fit within the model's input dimensions while preserving its
+     * aspect ratio (ratio = min(inputW/srcW, inputH/srcH)). The scaled image is placed at the
+     * top-left corner and the remaining area is filled with constant gray (114, 114, 114).
      *
-     * @param src The source bitmap to be resized.
+     * @param src The source bitmap to be letterboxed.
      *
-     * @return A bitmap resized to the model's input dimensions.
+     * @return A bitmap of size [inputW × inputH] with the source image letterboxed inside.
      */
     private fun getReusableInput(src: Bitmap): Bitmap {
         val bmp =
@@ -445,7 +445,17 @@ class SnpeModel(
                     reusableCanvas = Canvas(it)
                 }
 
-        reusableCanvas?.drawBitmap(src, null, dstRect, paint)
+        // Compute uniform scale ratio (letterbox: maintain aspect ratio, top-left placement).
+        val ratio = minOf(inputW.toFloat() / src.width, inputH.toFloat() / src.height)
+        val scaledW = (src.width * ratio).toInt()
+        val scaledH = (src.height * ratio).toInt()
+
+        // Fill entire bitmap with the letterbox pad color before drawing the scaled source.
+        val padColor = android.graphics.Color.rgb(LETTERBOX_PAD, LETTERBOX_PAD, LETTERBOX_PAD)
+        bmp.eraseColor(padColor)
+
+        val destRect = Rect(0, 0, scaledW, scaledH)
+        reusableCanvas?.drawBitmap(src, null, destRect, paint)
         return bmp
     }
 
