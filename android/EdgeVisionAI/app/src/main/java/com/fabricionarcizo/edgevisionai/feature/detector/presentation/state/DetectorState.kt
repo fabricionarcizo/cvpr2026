@@ -18,24 +18,19 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.feature.detector.presentation.state
 
 /**
- * Represents a single model configuration.
+ * Data class representing the UI state of the object detector.
  *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * @property isModelLoading Indicates whether the models are currently loading.
+ * @property isModelLoaded Indicates whether the models have been successfully loaded.
+ * @property errorMessage An optional error message if loading failed.
+ * @property fps The current frames per second being processed, if available.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
+data class DetectorState(
+    val isModelLoading: Boolean = false,
+    val isModelLoaded: Boolean = false,
+    val errorMessage: String? = null,
+    val fps: Double? = null,
 )

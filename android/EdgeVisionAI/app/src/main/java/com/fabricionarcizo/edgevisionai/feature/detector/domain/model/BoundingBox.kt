@@ -18,24 +18,19 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.feature.detector.domain.model
 
 /**
- * Represents a single model configuration.
+ * Data class representing a bounding box with its coordinates.
  *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * @property left The left coordinate of the bounding box.
+ * @property top The top coordinate of the bounding box.
+ * @property right The right coordinate of the bounding box.
+ * @property bottom The bottom coordinate of the bounding box.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
+data class BoundingBox(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
 )

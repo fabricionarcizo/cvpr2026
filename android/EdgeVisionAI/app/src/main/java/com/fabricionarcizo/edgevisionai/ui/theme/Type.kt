@@ -18,24 +18,41 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 /**
- * Represents a single model configuration.
- *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * Set of Material typography styles to start with.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
-)
+val Typography =
+    Typography(
+        bodyLarge =
+            TextStyle(
+                fontFamily = FontFamily.Default,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.5.sp,
+            ),
+    /* Other default text styles to override
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+     */
+    )

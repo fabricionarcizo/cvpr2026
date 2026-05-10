@@ -30,24 +30,14 @@ import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
  */
 object ObjectPostProcessorConfig {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Number of detections output by the model.
      */
-    const val NUM_DETECTIONS = 8400
+    const val NUM_DETECTIONS = 2100
 
     /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
+     * Number of corners in a bounding box.
      */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
+    const val NUM_CORNERS = 4
 
     /**
      * Number of classes the model can predict.

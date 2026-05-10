@@ -18,24 +18,20 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.feature.detector.presentation.ui.viewmodel
+
+import com.fabricionarcizo.edgevisionai.feature.detector.application.DetectorRuntimeState
+import com.fabricionarcizo.edgevisionai.feature.detector.presentation.state.DetectorState
 
 /**
- * Represents a single model configuration.
+ * Maps the [DetectorRuntimeState] to the [DetectorState] for UI representation.
  *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * @return DetectorState The mapped UI state of the detector.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
-)
+fun DetectorRuntimeState.toUiState(): DetectorState =
+    DetectorState(
+        isModelLoading = isModelLoading,
+        isModelLoaded = isModelLoaded,
+        errorMessage = errorMessage,
+        fps = fps,
+    )

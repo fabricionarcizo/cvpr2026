@@ -18,24 +18,17 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.feature.detector.infra.camera.model
 
 /**
- * Represents a single model configuration.
+ * Data class representing information about a video frame.
  *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * @property width The width of the frame.
+ * @property height The height of the frame.
+ * @property isFrontCamera Boolean indicating if the frame is from the front camera.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
+data class FrameInfo(
+    val width: Int,
+    val height: Int,
+    val isFrontCamera: Boolean,
 )

@@ -24,7 +24,6 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Color
 import android.graphics.Rect
 import android.util.Log
 import androidx.core.graphics.createBitmap
@@ -112,17 +111,17 @@ class SnpeModel(
     /**
      * Input width dimension.
      */
-    private val inputW = if (config.isNchw) config.inputShape[3] else config.inputShape[2]
+    private val inputW = config.inputNHWC[2]
 
     /**
      * Input height dimension.
      */
-    private val inputH = if (config.isNchw) config.inputShape[2] else config.inputShape[1]
+    private val inputH = config.inputNHWC[1]
 
     /**
      * Destination rectangle for bitmap resizing.
      */
-    private val letterboxRect = Rect()
+    private val dstRect = Rect(0, 0, inputW, inputH)
 
     /**
      * Paint object with bitmap filtering enabled.
@@ -235,7 +234,7 @@ class SnpeModel(
         val model = loadModelFromAssets() ?: return false
 
         // Creates the input tensor based on the model configuration.
-        val tensor = model.createFloatTensor(*config.inputShape.toIntArray()) ?: return false
+        val tensor = model.createFloatTensor(*config.inputNHWC.toIntArray()) ?: return false
 
         // Creates the inputMap with the non-null input tensor, updates the neural network reference
         // and updates the input tensor reference.
@@ -268,7 +267,8 @@ class SnpeModel(
     private fun loadModelFromAssets(): NeuralNetwork? =
         try {
             application.assets.open(config.fileName).use { stream ->
-                var builder =
+                val outputLayers = config.outputLayerNames.toTypedArray()
+                val model =
                     SNPE
                         .NeuralNetworkBuilder(application)
                         .setRuntimeCheckOption(
@@ -277,18 +277,13 @@ class SnpeModel(
                             } else {
                                 NeuralNetwork.RuntimeCheckOption.NORMAL_CHECK
                             },
-                        ).setModel(stream, stream.available())
+                        ).setOutputLayers(*outputLayers)
+                        .setModel(stream, stream.available())
                         .setPerformanceProfile(NeuralNetwork.PerformanceProfile.DEFAULT)
                         .setRuntimeOrder(NeuralNetwork.Runtime.DSP)
                         .setCpuFallbackEnabled(false)
-
-                // Only restrict outputs when explicit layer names are provided. If the list is
-                // empty the model's declared outputs are exposed automatically by SNPE.
-                if (config.outputLayerNames.isNotEmpty()) {
-                    builder = builder.setOutputLayers(*config.outputLayerNames.toTypedArray())
-                }
-
-                builder.build()
+                        .build()
+                model
             }
         } catch (e: Exception) {
             Log.e(TAG, "Model loading error", e)
@@ -400,19 +395,14 @@ class SnpeModel(
         val isStateValid =
             !isClosed &&
                 isInitialized &&
-                inputBmp.width == inputW &&
-                inputBmp.height == inputH
+                inputBmp.width == config.inputNHWC[2] &&
+                inputBmp.height == config.inputNHWC[1]
 
         if (!isStateValid) return null
 
         // 2. Preprocess the bitmap and convert to a float buffer.
         bitmapRgbFloatPreprocessor.convertBitmapToBuffer(inputBmp)
-        val floats =
-            if (config.isNchw) {
-                bitmapRgbFloatPreprocessor.bufferToFloatsNCHW()
-            } else {
-                bitmapRgbFloatPreprocessor.bufferToFloatsRGB()
-            }
+        val floats = bitmapRgbFloatPreprocessor.bufferToFloatsRGB()
 
         // 3. Return null if the last buffer was black (all zeros), otherwise execute inference.
         return if (bitmapRgbFloatPreprocessor.wasLastBufferBlack()) {
@@ -437,16 +427,15 @@ class SnpeModel(
     }
 
     /**
-     * Retrieves a reusable input bitmap letterboxed to the model's input dimensions.
+     * Retrieves a reusable input bitmap resized to the model's input dimensions.
      *
-     * Preserves the source aspect ratio by scaling uniformly to fit within [inputW] × [inputH]
-     * and filling the remaining area with neutral gray (0.5 normalised). This avoids the aspect-
-     * ratio distortion that would result from simple stretching, matching the centre-crop /
-     * letterbox pre-processing typically used during YOLOX training.
+     * This method checks if a reusable bitmap and canvas already exist. If not, it creates them.
+     * It then draws the source bitmap onto the reusable bitmap using the predefined destination
+     * rectangle and paint settings.
      *
-     * @param src The source bitmap to be letterboxed.
+     * @param src The source bitmap to be resized.
      *
-     * @return A bitmap of size [inputW] × [inputH] with the source image centred inside it.
+     * @return A bitmap resized to the model's input dimensions.
      */
     private fun getReusableInput(src: Bitmap): Bitmap {
         val bmp =
@@ -456,20 +445,7 @@ class SnpeModel(
                     reusableCanvas = Canvas(it)
                 }
 
-        val canvas = reusableCanvas!!
-
-        // Fill with neutral gray matching the YOLOX training letterbox value (114 / 255 ≈ 0.447).
-        canvas.drawColor(Color.rgb(114, 114, 114))
-
-        // Uniform scale to fit; centre-align in both axes.
-        val scale = minOf(inputW.toFloat() / src.width, inputH.toFloat() / src.height)
-        val scaledW = (src.width * scale).toInt()
-        val scaledH = (src.height * scale).toInt()
-        val offsetX = (inputW - scaledW) / 2
-        val offsetY = (inputH - scaledH) / 2
-        letterboxRect.set(offsetX, offsetY, offsetX + scaledW, offsetY + scaledH)
-
-        canvas.drawBitmap(src, null, letterboxRect, paint)
+        reusableCanvas?.drawBitmap(src, null, dstRect, paint)
         return bmp
     }
 

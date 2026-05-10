@@ -18,24 +18,36 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.ui.theme
+
+import androidx.compose.ui.graphics.Color
 
 /**
- * Represents a single model configuration.
- *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * The primary color in the dark mode.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
-)
+val Purple80 = Color(0xFFD0BCFF)
+
+/**
+ * The secondary color in the dark mode.
+ */
+val PurpleGrey80 = Color(0xFFCCC2DC)
+
+/**
+ * The tertiary color in the dark mode.
+ */
+val Pink80 = Color(0xFFEFB8C8)
+
+/**
+ * The primary color in the light mode.
+ */
+val Purple40 = Color(0xFF6650a4)
+
+/**
+ * The secondary color in the light mode.
+ */
+val PurpleGrey40 = Color(0xFF625b71)
+
+/**
+ * The tertiary color in the light mode.
+ */
+val Pink40 = Color(0xFF7D5260)

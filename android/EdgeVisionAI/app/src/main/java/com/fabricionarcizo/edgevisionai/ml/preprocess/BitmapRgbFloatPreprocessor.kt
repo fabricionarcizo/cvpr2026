@@ -141,21 +141,6 @@ class BitmapRgbFloatPreprocessor {
     }
 
     /**
-     * Converts the pixel data in the temporary ByteBuffer to a normalized FloatArray in NCHW
-     * (planar) format: all R values for every pixel, then all G values, then all B values.
-     *
-     * @return A FloatArray containing the normalized pixel values in CHW planar format.
-     */
-    fun bufferToFloatsNCHW(): FloatArray {
-        val inputArray = tempByteBuffer?.array() ?: return FloatArray(0)
-        val pixelCount = tempFloatBuffer.size / RGB_CHANNELS
-
-        wasLastBufferBlack = sumChannelsPlanar(pixelCount, inputArray) < (pixelCount * BLACK_FRAME_THRESHOLD_PER_PIXEL)
-
-        return tempFloatBuffer
-    }
-
-    /**
      * Sums the blue channel values from the input pixel array while converting RGBA to normalized
      * RGB.
      *
@@ -181,38 +166,6 @@ class BitmapRgbFloatPreprocessor {
             tempFloatBuffer[dstIndex] = NORMALIZE_SCALE * red
             tempFloatBuffer[dstIndex + 1] = NORMALIZE_SCALE * green
             tempFloatBuffer[dstIndex + 2] = NORMALIZE_SCALE * blue
-
-            blueSum += blue
-        }
-
-        return blueSum
-    }
-
-    /**
-     * Fills [tempFloatBuffer] in planar CHW order (all R, then all G, then all B) from RGBA input
-     * while summing the blue channel to detect black frames.
-     *
-     * @param pixelCount The number of pixels to process.
-     * @param inputArray The input byte array containing pixel data in RGBA format.
-     *
-     * @return The sum of the blue channel values.
-     */
-    private fun sumChannelsPlanar(
-        pixelCount: Int,
-        inputArray: ByteArray,
-    ): Long {
-        var blueSum = 0L
-
-        for (i in 0 until pixelCount) {
-            val srcIndex = i * RGBA_CHANNELS
-
-            val red = inputArray[srcIndex + RED_OFFSET].toInt() and BYTE_MASK
-            val green = inputArray[srcIndex + GREEN_OFFSET].toInt() and BYTE_MASK
-            val blue = inputArray[srcIndex + BLUE_OFFSET].toInt() and BYTE_MASK
-
-            tempFloatBuffer[i] = NORMALIZE_SCALE * red
-            tempFloatBuffer[pixelCount + i] = NORMALIZE_SCALE * green
-            tempFloatBuffer[2 * pixelCount + i] = NORMALIZE_SCALE * blue
 
             blueSum += blue
         }

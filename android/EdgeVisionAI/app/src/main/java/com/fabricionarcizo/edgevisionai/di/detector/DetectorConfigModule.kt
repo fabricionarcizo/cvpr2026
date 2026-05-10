@@ -18,24 +18,37 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.di.detector
+
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ViewModelComponent
+import dagger.hilt.android.scopes.ViewModelScoped
+import com.fabricionarcizo.edgevisionai.feature.detector.presentation.config.DetectorCameraConfig
+import com.fabricionarcizo.edgevisionai.ml.pipeline.DetectionPipelineConfig
 
 /**
- * Represents a single model configuration.
- *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * Hilt module to provide detector configuration dependencies.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
-)
+@Module
+@InstallIn(ViewModelComponent::class)
+object DetectorConfigModule {
+    /**
+     * Provides an instance of [DetectorCameraConfig].
+     *
+     * @return [DetectorCameraConfig] instance.
+     */
+    @Provides
+    @ViewModelScoped
+    fun provideDetectorCameraConfig(): DetectorCameraConfig = DetectorCameraConfig.DEFAULT
+
+    /**
+     * Provides an instance of [DetectionPipelineConfig].
+     *
+     * @return [DetectionPipelineConfig] instance.
+     */
+    @Provides
+    @ViewModelScoped
+    fun provideDetectionPipelineConfig(): DetectionPipelineConfig = DetectionPipelineConfig.DEFAULT
+}

@@ -18,24 +18,36 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.feature.detector.overlay.model
+
+import android.graphics.RectF
 
 /**
- * Represents a single model configuration.
+ * A box with an associated label to be drawn on an overlay.
  *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * @property rect The rectangle defining the box's position and size.
+ * @property label The text label associated with the box.
+ * @property labelAnchor The anchor position for the label relative to the box.
+ * @property fill The fill style for the box.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
+data class LabeledBox(
+    val rect: RectF,
+    val label: String,
+    val labelAnchor: LabelAnchor = LabelAnchor.TopLeft,
+    val fill: BoxFill = BoxFill.None,
 )
+
+/**
+ * Enum representing possible anchor positions for labels on boxes.
+ */
+enum class LabelAnchor { TopLeft, }
+
+/**
+ * Sealed class representing different fill styles for boxes.
+ */
+sealed class BoxFill {
+    /**
+     * No fill style.
+     */
+    data object None : BoxFill()
+}

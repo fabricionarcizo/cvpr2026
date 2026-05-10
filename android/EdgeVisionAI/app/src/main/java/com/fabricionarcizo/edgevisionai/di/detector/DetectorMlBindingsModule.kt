@@ -18,24 +18,27 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.config
+package com.fabricionarcizo.edgevisionai.di.detector
+
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import com.fabricionarcizo.edgevisionai.di.ml.ObjectDetection
+import com.fabricionarcizo.edgevisionai.ml.api.Detector
+import com.fabricionarcizo.edgevisionai.ml.detectors.ObjectDetector
+import com.fabricionarcizo.edgevisionai.ml.results.ObjectResult
 
 /**
- * Represents a single model configuration.
- *
- * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
- *
- * @property fileName The filename path of the model.
- * @property inputNHWC The input dimensions of the model in NHWC format.
- * @property inputLayerName The name of the model's input layer.
- * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
+ * Module to bind detector implementations to their respective interfaces using qualifiers.
  */
-data class ModelConfig(
-    val fileName: String,
-    val inputNHWC: List<Int>,
-    val inputLayerName: String,
-    val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
-)
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DetectorMlBindingsModule {
+    /**
+     * Binds the ObjectDetector implementation to the Detector interface for object detection.
+     */
+    @Binds
+    @ObjectDetection
+    abstract fun bindObjectDetector(impl: ObjectDetector): Detector<List<ObjectResult>>
+}

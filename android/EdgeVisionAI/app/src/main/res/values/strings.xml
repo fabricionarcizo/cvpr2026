@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">EdgeVision AI</string>
+    <string name="fps_text">FPS: %.0f</string>
+    <string name="camera_permission_title">Camera Permission Required 📸</string>
+    <string name="camera_permission_rationale_message">The EdgeVision AI app requires access to your camera for object detection and to function correctly. Please grant the permission.</string>
+    <string name="button_ok">OK</string>
+    <string name="button_cancel">Cancel</string>
+</resources>
