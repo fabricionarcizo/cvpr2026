@@ -18,44 +18,30 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
+package com.fabricionarcizo.edgevisionai.ml.postprocessor.common
 
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+import android.graphics.Bitmap
+import com.fabricionarcizo.edgevisionai.ml.api.InferenceEngine
+import com.fabricionarcizo.edgevisionai.ml.api.TensorOutputs
 
 /**
- * Configuration object for YOLO post-processor settings.
+ * An interface for post-processing the raw output tensors from a DLC model into structured results.
  *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * @param T The type of the structured result after post-processing.
  */
-object ObjectPostProcessorConfig {
+interface PostProcessor<T> {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Interprets the raw output tensors from a model into a structured result.
+     *
+     * @param engine The inference engine that ran the model.
+     * @param bitmap The input bitmap image that was processed.
+     * @param threshold The confidence threshold for filtering results.
+     *
+     * @return The structured result after post-processing.
      */
-    const val NUM_DETECTIONS = 8400
-
-    /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
-     */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
+    fun process(
+        engine: InferenceEngine<TensorOutputs>,
+        bitmap: Bitmap,
+        threshold: Float,
+    ): T
 }

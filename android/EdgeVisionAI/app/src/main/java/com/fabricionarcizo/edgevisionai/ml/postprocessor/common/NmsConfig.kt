@@ -18,44 +18,24 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
-
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+package com.fabricionarcizo.edgevisionai.ml.postprocessor.common
 
 /**
- * Configuration object for YOLO post-processor settings.
+ * Configuration for Non-Maximum Suppression (NMS) algorithm.
  *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * @property iouThreshold The Intersection over Union (IoU) threshold for suppressing overlapping
+ *      boxes.
  */
-object ObjectPostProcessorConfig {
+data class NmsConfig(
+    val iouThreshold: Float = 0.2f,
+) {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Companion object containing default NMS configuration.
      */
-    const val NUM_DETECTIONS = 8400
-
-    /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
-     */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
+    companion object {
+        /**
+         * Default NMS configuration with an IoU threshold of 0.2.
+         */
+        val DEFAULT = NmsConfig()
+    }
 }

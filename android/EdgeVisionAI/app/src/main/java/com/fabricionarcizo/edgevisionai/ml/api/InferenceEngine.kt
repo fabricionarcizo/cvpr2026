@@ -18,44 +18,34 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
+package com.fabricionarcizo.edgevisionai.ml.api
 
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+import android.graphics.Bitmap
 
 /**
- * Configuration object for YOLO post-processor settings.
- *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * Inference engine interface for running ML models.
  */
-object ObjectPostProcessorConfig {
+interface InferenceEngine<Out> {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Initializes the inference engine by loading the model. This method should be called before
+     * using the engine for inference. It is safe to call multiple times - subsequent calls will be
+     * ignored.
+     *
+     * @throws IllegalStateException if model loading fails.
      */
-    const val NUM_DETECTIONS = 8400
+    suspend fun initialize()
 
     /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
+     * Run inference and consume the output inside [block]. Engines that return native-backed
+     * outputs (e.g., SNPE tensors) should override this to guarantee proper resource release.
+     *
+     * @param bitmap The input image as a Bitmap.
+     * @param block A lambda function that consumes the output.
+     *
+     * @return The result of the [block] function.
      */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
+    fun <R> infer(
+        bitmap: Bitmap,
+        block: (Out) -> R,
+    ): R?
 }

@@ -18,44 +18,29 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
-
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+package com.fabricionarcizo.edgevisionai.ml.config
 
 /**
- * Configuration object for YOLO post-processor settings.
+ * This object holds constant model configurations used in the application.
  *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * Each configuration is represented by a [ModelConfig] data class instance.
+ *
+ * These configurations include details such as the model file name, input dimensions, input and
+ * output layer names, and any alternative names for outputs.
  */
-object ObjectPostProcessorConfig {
+object ModelRegistry {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Configuration for the YOLO-NAS-S-INT8 model.
+     *
+     * Uses direct coordinate prediction without anchor generation.
      */
-    const val NUM_DETECTIONS = 8400
-
-    /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
-     */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
+    val objectDetectorConfig =
+        ModelConfig(
+            fileName = "LibreYOLOXs_int8_sm7325.dlc",
+            inputShape = intArrayOf(1, 3, 640, 640).toList(),
+            isNchw = true,
+            inputLayerName = "images",
+            outputLayerNames = listOf("/head/Concat_9"),
+            outputAlternativeNames = listOf("detections"),
+        )
 }

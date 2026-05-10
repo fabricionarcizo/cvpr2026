@@ -112,12 +112,12 @@ class SnpeModel(
     /**
      * Input width dimension.
      */
-    private val inputW = config.inputNHWC[2]
+    private val inputW = if (config.isNchw) config.inputShape[3] else config.inputShape[2]
 
     /**
      * Input height dimension.
      */
-    private val inputH = config.inputNHWC[1]
+    private val inputH = if (config.isNchw) config.inputShape[2] else config.inputShape[1]
 
     /**
      * Destination rectangle for bitmap resizing.
@@ -235,7 +235,7 @@ class SnpeModel(
         val model = loadModelFromAssets() ?: return false
 
         // Creates the input tensor based on the model configuration.
-        val tensor = model.createFloatTensor(*config.inputNHWC.toIntArray()) ?: return false
+        val tensor = model.createFloatTensor(*config.inputShape.toIntArray()) ?: return false
 
         // Creates the inputMap with the non-null input tensor, updates the neural network reference
         // and updates the input tensor reference.
@@ -396,14 +396,19 @@ class SnpeModel(
         val isStateValid =
             !isClosed &&
                 isInitialized &&
-                inputBmp.width == config.inputNHWC[2] &&
-                inputBmp.height == config.inputNHWC[1]
+                inputBmp.width == inputW &&
+                inputBmp.height == inputH
 
         if (!isStateValid) return null
 
         // 2. Preprocess the bitmap and convert to a float buffer.
         bitmapRgbFloatPreprocessor.convertBitmapToBuffer(inputBmp)
-        val floats = bitmapRgbFloatPreprocessor.bufferToFloatsRGB()
+        val floats =
+            if (config.isNchw) {
+                bitmapRgbFloatPreprocessor.bufferToFloatsNCHW()
+            } else {
+                bitmapRgbFloatPreprocessor.bufferToFloatsRGB()
+            }
 
         // 3. Return null if the last buffer was black (all zeros), otherwise execute inference.
         return if (bitmapRgbFloatPreprocessor.wasLastBufferBlack()) {

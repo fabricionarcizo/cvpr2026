@@ -18,44 +18,33 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
+package com.fabricionarcizo.edgevisionai.ml.api
 
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+import android.graphics.Bitmap
 
 /**
- * Configuration object for YOLO post-processor settings.
- *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * Interface for a generic detector that processes images and returns results of type T.
  */
-object ObjectPostProcessorConfig {
+interface Detector<T> {
     /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
+     * Initializes the detector by loading its underlying models. This method should be called
+     * before using the detector. It is safe to call multiple times - subsequent calls will be
+     * ignored.
+     *
+     * @throws IllegalStateException if model loading fails.
      */
-    const val NUM_DETECTIONS = 8400
+    suspend fun initialize()
 
     /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
+     * Processes the given bitmap and returns detection results of type T.
+     *
+     * @param bitmap The input image as a Bitmap.
+     * @param threshold The confidence threshold for detections.
+     *
+     * @return The detection results of type T.
      */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
+    fun detect(
+        bitmap: Bitmap,
+        threshold: Float,
+    ): T
 }

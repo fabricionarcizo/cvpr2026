@@ -18,44 +18,25 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.fabricionarcizo.edgevisionai.ml.postprocessor
+package com.fabricionarcizo.edgevisionai.ml.results
 
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.NmsConfig
+import android.graphics.RectF
 
 /**
- * Configuration object for YOLO post-processor settings.
+ * Represents a single object detection result.
  *
- * This object holds configuration parameters specific to the YOLO post-processing, such as
- * Non-Maximum Suppression (NMS) settings.
+ * Each result includes the detected object's label (e.g., "person", "car"), the confidence score
+ * from the model, the bounding box in image coordinates, and an optional track ID to identify the
+ * detected object across frames.
+ *
+ * @property label The name or class of the detected object.
+ * @property score The model's confidence score for the detection (range: 0.0 to 1.0).
+ * @property rect The rectangular area where the object was detected, in image coordinates.
+ * @property trackId An optional unique identifier for tracking the object across frames.
  */
-object ObjectPostProcessorConfig {
-    /**
-     * Total number of detections output by the model (80×80 + 40×40 + 20×20 grid cells).
-     */
-    const val NUM_DETECTIONS = 8400
-
-    /**
-     * Number of attributes per detection: 4 bbox + 1 objectness + 80 classes.
-     */
-    const val NUM_ATTRIBUTES = 85
-
-    /**
-     * Index of the objectness score within a detection's attribute vector.
-     */
-    const val OBJECTNESS_INDEX = 4
-
-    /**
-     * Starting index of class scores within a detection's attribute vector.
-     */
-    const val CLASS_OFFSET = 5
-
-    /**
-     * Number of classes the model can predict.
-     */
-    const val NUM_CLASSES = 80
-
-    /**
-     * Non-Maximum Suppression (NMS) configuration.
-     */
-    val NMS = NmsConfig.DEFAULT
-}
+data class ObjectResult(
+    val label: String,
+    val score: Float,
+    val rect: RectF,
+    val trackId: Long? = null,
+)
