@@ -70,10 +70,10 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 | **1. Imports** | Load `cv2`, `glob`, `os`, `random`, `torch`, `uuid`, `numpy`, and `libreyolo`. |
 | **2. Preprocessing functions** | Define `letterbox()` — top-left letterbox resize to 640 × 640 with pad value 114, BGR color, 0–255 float32. Define `preprocess()` — calls `letterbox()` and transposes HWC → CHW. No normalization, no BGR→RGB conversion. |
 | **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 2000 images (`seed=42`), load each with `cv2.imread()` (BGR), preprocess, save as a `.raw` binary file (CHW layout), and generate `raw/filenames.txt` for `qairt-quantizer`. |
-| **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, wrap with `SplitHead`, and export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640) and two outputs: `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81). |
+| **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640), then apply `_split_onnx_for_dsp()` to restructure the graph and produce two independent outputs: `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`. |
-| **7. INT8 quantization** | Apply PTQ using `qairt-quantizer` with the calibration `.raw` samples. The `SplitHead` wrapper ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
+| **7. INT8 quantization** | Apply PTQ using `qairt-quantizer` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC using `qairt-dlc-info` to confirm quantized layer types and reduced model size. |
 
 ### CLI Tools
@@ -82,7 +82,7 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 |---|---|
 | `qairt-converter` | Converts an ONNX model to QAIRT's DLC format (FP32) |
 | `qairt-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `qairt-quantizer` | Applies post-training quantization using a calibration dataset; split outputs (`bboxes`, `scores`) ensure correct INT8 scales on DSP |
+| `qairt-quantizer` | Applies post-training quantization using a calibration dataset; ONNX graph surgery (`_split_onnx_for_dsp()`) gives `bboxes` and `scores` separate INT8 scales, preventing score collapse on DSP |
 
 ### Output Files
 
@@ -115,10 +115,10 @@ interface.
 | **1. Imports** | Same libraries as the QAIRT notebook. |
 | **2. Preprocessing functions** | Same `letterbox()` and `preprocess()` functions as the QAIRT notebook. |
 | **3. Calibration dataset** | Same COCO 2017 val download, 2000-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
-| **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook — wraps with `SplitHead` to produce `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81); idempotent (skips if `LibreYOLOXs.onnx` already exists). |
+| **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook — exports with single output `detections`, then calls `_split_onnx_for_dsp()` to restructure the graph and produce `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81); idempotent (skips restructuring if already done). |
 | **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`. |
 | **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info`. |
-| **7. INT8 quantization** | Apply PTQ using `snpe-dlc-quantize` with the calibration `.raw` samples. The `SplitHead` wrapper ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
+| **7. INT8 quantization** | Apply PTQ using `snpe-dlc-quantize` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC with `snpe-dlc-info`. |
 | **9. HTP graph compilation** | Compile the INT8 DLC offline for the **Hexagon Tensor Processor (HTP)** on the **Snapdragon 778G (sm7325)** using `snpe-dlc-graph-prepare`. Produces a pre-compiled DLC for maximum HTP utilization on-device. |
 | **10. HTP DLC inspection** | Verify the compiled DLC with `snpe-dlc-info` to confirm HTP-specific optimizations. |
@@ -129,7 +129,7 @@ interface.
 |---|---|
 | `snpe-onnx-to-dlc` | Converts an ONNX model to SNPE's DLC format (FP32) |
 | `snpe-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `snpe-dlc-quantize` | Applies post-training quantization using a calibration dataset; split outputs (`bboxes`, `scores`) ensure correct INT8 scales on DSP |
+| `snpe-dlc-quantize` | Applies post-training quantization using a calibration dataset; ONNX graph surgery (`_split_onnx_for_dsp()`) gives `bboxes` and `scores` separate INT8 scales, preventing score collapse on DSP |
 | `snpe-dlc-graph-prepare` | Compiles the DLC graph offline for a specific Snapdragon HTP SoC |
 
 ### Output Files
@@ -196,7 +196,7 @@ step checks whether its output already exists before executing:
 - The COCO validation set is not re-downloaded if `val/` exists.
 - The `.raw` calibration files are not regenerated if `raw/` exists.
 - `LibreYOLOXs.pt` is not re-downloaded if it already exists in `../models/`.
-- `LibreYOLOXs.onnx` is not re-exported if it already exists.
+- `LibreYOLOXs.onnx` is not re-exported if it already exists; graph surgery is always re-applied but is idempotent (no-op if already done).
 
 ---
 
