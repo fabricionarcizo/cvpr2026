@@ -31,16 +31,13 @@ package com.fabricionarcizo.edgevisionai.ml.config
 object ModelRegistry {
     /**
      * Configuration for the LibreYOLOXs INT8 quantized model (Qualcomm SM7325).
-     *
-     * YOLOX produces a single combined output tensor [8400, 85]:
-     * cx, cy, w, h, obj_score, class_scores[80].
      */
     val objectDetectorConfig =
         ModelConfig(
             fileName = "LibreYOLOXs_int8_sm7325.dlc",
             inputNHWC = intArrayOf(1, 640, 640, 3).toList(),
             inputLayerName = "images",
-            outputLayerNames = listOf("/head/Concat_9"),
-            outputAlternativeNames = listOf("detections"),
+            outputLayerNames = listOf("/Slice", "/Slice_1"),
+            outputAlternativeNames = listOf("bboxes", "scores"),
         )
 }

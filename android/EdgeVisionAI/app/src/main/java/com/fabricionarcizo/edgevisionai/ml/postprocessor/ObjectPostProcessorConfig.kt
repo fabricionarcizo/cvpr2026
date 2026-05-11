@@ -36,10 +36,15 @@ object ObjectPostProcessorConfig {
     const val NUM_DETECTIONS = 8400
 
     /**
-     * Total number of values per detection in the raw YOLOX output tensor
-     * (cx, cy, w, h, obj_score + 80 class scores = 85).
+     * Number of values per detection in the `bboxes` output tensor (cx, cy, w, h).
      */
-    const val NUM_OUTPUTS = 85
+    const val NUM_BBOX_VALUES = 4
+
+    /**
+     * Number of values per detection in the `scores` output tensor
+     * (1 obj_score + 80 class scores = 81).
+     */
+    const val NUM_SCORE_VALUES = 81
 
     /**
      * Number of corners in a bounding box.
@@ -50,16 +55,6 @@ object ObjectPostProcessorConfig {
      * Number of classes the model can predict.
      */
     const val NUM_CLASSES = 80
-
-    /**
-     * Index of the objectness score within each YOLOX detection row.
-     */
-    const val OBJ_SCORE_INDEX = 4
-
-    /**
-     * Starting index of the per-class scores within each YOLOX detection row.
-     */
-    const val CLASS_SCORE_START = 5
 
     /**
      * Non-Maximum Suppression (NMS) configuration.

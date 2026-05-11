@@ -26,12 +26,11 @@ import com.fabricionarcizo.edgevisionai.di.ml.ObjectDetection
 import com.fabricionarcizo.edgevisionai.ml.api.InferenceEngine
 import com.fabricionarcizo.edgevisionai.ml.api.TensorOutputs
 import com.fabricionarcizo.edgevisionai.ml.config.ModelConfig
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.CLASS_SCORE_START
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NMS
+import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_BBOX_VALUES
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_CLASSES
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_DETECTIONS
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_OUTPUTS
-import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.OBJ_SCORE_INDEX
+import com.fabricionarcizo.edgevisionai.ml.postprocessor.ObjectPostProcessorConfig.NUM_SCORE_VALUES
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.DetectionUtils
 import com.fabricionarcizo.edgevisionai.ml.postprocessor.common.PostProcessor
 import com.fabricionarcizo.edgevisionai.ml.results.ObjectResult
@@ -54,15 +53,22 @@ class ObjectPostProcessor
         @param:ObjectDetection private val classNames: List<String>,
     ) : PostProcessor<List<ObjectResult>> {
         /**
-         * Flat scratch buffer for the single YOLOX output tensor [NUM_DETECTIONS × NUM_OUTPUTS].
+         * Flat scratch buffer for the `bboxes` output tensor [NUM_DETECTIONS × NUM_BBOX_VALUES].
          */
-        private val outputScratch = FloatArray(NUM_DETECTIONS * NUM_OUTPUTS)
+        private val bboxScratch = FloatArray(NUM_DETECTIONS * NUM_BBOX_VALUES)
 
         /**
-         * Processes the YOLOX model output to extract detection results.
+         * Flat scratch buffer for the `scores` output tensor [NUM_DETECTIONS × NUM_SCORE_VALUES].
+         */
+        private val scoreScratch = FloatArray(NUM_DETECTIONS * NUM_SCORE_VALUES)
+
+        /**
+         * Processes the YOLOX model outputs to extract detection results.
          *
-         * YOLOX produces a single tensor of shape [NUM_DETECTIONS, NUM_OUTPUTS] (e.g. [8400, 85]).
-         * Each row contains: cx, cy, w, h, obj_score, class_scores[80].
+         * The model produces two tensors:
+         *  - `bboxes` [NUM_DETECTIONS, 4] : cx, cy, w, h per anchor (640-pixel space)
+         *  - `scores` [NUM_DETECTIONS, 81]: obj_score (index 0) + class_scores[80] (indices 1–80)
+         *
          * Confidence = obj_score × max(class_scores). Coordinates are in the 640-pixel input space
          * and are unscaled back to original bitmap dimensions using the letterbox ratio.
          *
@@ -79,9 +85,11 @@ class ObjectPostProcessor
             threshold: Float,
         ): List<ObjectResult> {
             return engine.infer(bitmap) { output ->
-                val tensor = output[config.outputAlternativeNames[0]] ?: return@infer emptyList()
+                val bboxTensor = output[config.outputAlternativeNames[0]] ?: return@infer emptyList()
+                val scoreTensor = output[config.outputAlternativeNames[1]] ?: return@infer emptyList()
 
-                tensor.read(outputScratch, 0, outputScratch.size)
+                bboxTensor.read(bboxScratch, 0, bboxScratch.size)
+                scoreTensor.read(scoreScratch, 0, scoreScratch.size)
 
                 // Letterbox ratio: min(inputW / bitmapW, inputH / bitmapH).
                 // Dividing 640-space coordinates by this ratio maps them back to bitmap space.
@@ -96,18 +104,17 @@ class ObjectPostProcessor
                 val results = ArrayList<ObjectResult>(NUM_DETECTIONS)
 
                 for (i in 0 until NUM_DETECTIONS) {
-                    val base = i * NUM_OUTPUTS
-
-                    val objScore = outputScratch[base + OBJ_SCORE_INDEX]
+                    val scoreBase = i * NUM_SCORE_VALUES
+                    val objScore = scoreScratch[scoreBase]
 
                     // Fast pre-filter: skip if objectness alone is below threshold.
                     if (objScore < threshold) continue
 
                     // Find best class and compute final confidence.
                     var bestClassId = 0
-                    var bestClassScore = outputScratch[base + CLASS_SCORE_START]
+                    var bestClassScore = scoreScratch[scoreBase + 1]
                     for (j in 1 until NUM_CLASSES) {
-                        val s = outputScratch[base + CLASS_SCORE_START + j]
+                        val s = scoreScratch[scoreBase + 1 + j]
                         if (s > bestClassScore) {
                             bestClassScore = s
                             bestClassId = j
@@ -118,10 +125,11 @@ class ObjectPostProcessor
                     if (confidence < threshold) continue
 
                     // Decode center-format box (cx, cy, w, h) → corner-format (x1, y1, x2, y2).
-                    val cx = outputScratch[base]
-                    val cy = outputScratch[base + 1]
-                    val bw = outputScratch[base + 2]
-                    val bh = outputScratch[base + 3]
+                    val bboxBase = i * NUM_BBOX_VALUES
+                    val cx = bboxScratch[bboxBase]
+                    val cy = bboxScratch[bboxBase + 1]
+                    val bw = bboxScratch[bboxBase + 2]
+                    val bh = bboxScratch[bboxBase + 3]
 
                     // Scale from 640-pixel space back to original bitmap dimensions.
                     val x1 = ((cx - bw * 0.5f) * invRatio).coerceIn(0f, origW)
