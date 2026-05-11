@@ -37,7 +37,6 @@ object ModelRegistry {
             fileName = "LibreYOLOXs_int8_sm7325.dlc",
             inputNHWC = intArrayOf(1, 640, 640, 3).toList(),
             inputLayerName = "images",
-            outputLayerNames = listOf("/Slice", "/Slice_1"),
-            outputAlternativeNames = listOf("bboxes", "scores"),
+            outputLayerNames = listOf("bboxes", "scores"),
         )
 }

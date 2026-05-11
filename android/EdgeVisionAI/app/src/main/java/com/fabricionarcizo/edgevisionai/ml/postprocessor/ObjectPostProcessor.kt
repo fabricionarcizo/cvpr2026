@@ -85,8 +85,8 @@ class ObjectPostProcessor
             threshold: Float,
         ): List<ObjectResult> {
             return engine.infer(bitmap) { output ->
-                val bboxTensor = output[config.outputAlternativeNames[0]] ?: return@infer emptyList()
-                val scoreTensor = output[config.outputAlternativeNames[1]] ?: return@infer emptyList()
+                val bboxTensor = output[config.outputLayerNames[0]] ?: return@infer emptyList()
+                val scoreTensor = output[config.outputLayerNames[1]] ?: return@infer emptyList()
 
                 bboxTensor.read(bboxScratch, 0, bboxScratch.size)
                 scoreTensor.read(scoreScratch, 0, scoreScratch.size)

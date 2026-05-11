@@ -24,18 +24,16 @@ package com.fabricionarcizo.edgevisionai.ml.config
  * Represents a single model configuration.
  *
  * Each model includes the filename path, the input dimensions in NHWC format, the input layer name,
- * the single or multiple output names, and the alternative output names.
+ * and the single or multiple output names.
  *
  * @property fileName The filename path of the model.
  * @property inputNHWC The input dimensions of the model in NHWC format.
  * @property inputLayerName The name of the model's input layer.
  * @property outputLayerNames The names of the model's output layers.
- * @property outputAlternativeNames Alternative names for the model's output layers.
  */
 data class ModelConfig(
     val fileName: String,
     val inputNHWC: List<Int>,
     val inputLayerName: String,
     val outputLayerNames: List<String>,
-    val outputAlternativeNames: List<String>,
 )
