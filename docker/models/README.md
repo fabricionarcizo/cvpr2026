@@ -66,11 +66,11 @@ on Hugging Face.
 | File | Format | Description |
 |---|---|---|
 | `LibreYOLOXs.pt` | PyTorch | Pre-trained LibreYOLOXs checkpoint. Downloaded from `LibreYOLO/LibreYOLOXs` and used as the entry point for all downstream conversions. |
-| `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True` and a `SplitHead` wrapper. Single input `images` (shape `1 × 3 × 640 × 640`), two decoded outputs: `bboxes` (shape `1 × 8400 × 4`) and `scores` (shape `1 × 8400 × 81`). |
+| `LibreYOLOXs.onnx` | ONNX (opset 13) | ONNX export of the PyTorch checkpoint with `head.export = True`, restructured by `_split_onnx_for_dsp()`. Single input `images` (shape `1 × 3 × 640 × 640`), two decoded outputs: `bboxes` (shape `1 × 8400 × 4`) and `scores` (shape `1 × 8400 × 81`). |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT DLC (FP32) | Floating-point DLC converted from the ONNX model using `qairt-converter` (QAIRT SDK v2.41.0.251128). |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8 weights and activations) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. Split outputs give each tensor its own INT8 scale, preventing score collapse on DSP (see [Calibration Dataset](#calibration-dataset)). |
+| `qairt/LibreYOLOXs_int8.dlc` | QAIRT DLC (INT8 weights and activations) | Post-training quantized DLC produced by `qairt-quantizer` using 1000 COCO 2017 validation images as calibration data. ONNX graph surgery gives each output branch its own INT8 scale, preventing score collapse on DSP (see [Calibration Dataset](#calibration-dataset)). |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE DLC (FP32) | Floating-point DLC converted from the ONNX model using `snpe-onnx-to-dlc`. |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8 weights and activations) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. Split outputs give each tensor its own INT8 scale, preventing score collapse on DSP. |
+| `snpe/LibreYOLOXs_int8.dlc` | SNPE DLC (INT8 weights and activations) | Post-training quantized DLC produced by `snpe-dlc-quantize` using 1000 COCO 2017 validation images as calibration data. ONNX graph surgery gives each output branch its own INT8 scale, preventing score collapse on DSP. |
 | `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE DLC (INT8 weights and activations + HTP) | INT8 DLC with offline HTP graph compilation for the **Snapdragon 778G (sm7325)**, produced by `snpe-dlc-graph-prepare`. Ready for maximum HTP utilization on-device. |
 
 ---
@@ -96,8 +96,9 @@ Preprocessing steps:
 ### Outputs
 
 The model uses `head.export = True` to decode grid offsets inside the ONNX graph.
-A `SplitHead` wrapper further separates bounding-box coordinates from detection
-scores, producing two output tensors:
+ONNX graph surgery (`_split_onnx_for_dsp()`) further separates bounding-box
+coordinates from detection scores, producing two output tensors with no
+mixed-range intermediate tensors:
 
 | Output name | Shape | Range | Description |
 |---|---|---|---|
@@ -245,7 +246,7 @@ a representative calibration dataset derived from the
 - **Samples used:** 1000 images selected randomly with `seed=42`
 - **Format:** `.raw` binary files — flat `float32` arrays with shape `(3, 640, 640)` in CHW layout
 - **Preprocessing:** top-left letterbox resize to 640 × 640 (bilinear, pad value 114), BGR color, 0–255 float32 (no normalization)
-- **Quantization:** standard INT8 PTQ — the `SplitHead` ONNX wrapper gives `bboxes` and `scores` separate INT8 scales, so no `--act_bitwidth 16` flag is required
+- **Quantization:** standard INT8 PTQ — `_split_onnx_for_dsp()` ONNX graph surgery gives `bboxes` and `scores` separate INT8 scales, so no `--act_bitwidth 16` flag is required
 
 ---
 
