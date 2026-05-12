@@ -93,8 +93,8 @@ class ObjectPostProcessor
 
                 // Letterbox ratio: min(inputW / bitmapW, inputH / bitmapH).
                 // Dividing 640-space coordinates by this ratio maps them back to bitmap space.
-                val inputW = config.inputNHWC[2].toFloat()
-                val inputH = config.inputNHWC[1].toFloat()
+                val inputW = config.inputNCHW[3].toFloat()
+                val inputH = config.inputNCHW[2].toFloat()
                 val ratio = minOf(inputW / bitmap.width, inputH / bitmap.height)
                 val invRatio = 1f / ratio
 

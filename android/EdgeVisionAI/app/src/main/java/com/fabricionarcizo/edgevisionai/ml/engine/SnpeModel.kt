@@ -116,12 +116,12 @@ class SnpeModel(
     /**
      * Input width dimension.
      */
-    private val inputW = config.inputNHWC[2]
+    private val inputW = config.inputNCHW[3]
 
     /**
      * Input height dimension.
      */
-    private val inputH = config.inputNHWC[1]
+    private val inputH = config.inputNCHW[2]
 
     /**
      * Paint object with bitmap filtering enabled.
@@ -234,7 +234,7 @@ class SnpeModel(
         val model = loadModelFromAssets() ?: return false
 
         // Creates the input tensor based on the model configuration.
-        val tensor = model.createFloatTensor(*config.inputNHWC.toIntArray()) ?: return false
+        val tensor = model.createFloatTensor(*config.inputNCHW.toIntArray()) ?: return false
 
         // Creates the inputMap with the non-null input tensor, updates the neural network reference
         // and updates the input tensor reference.
@@ -395,8 +395,8 @@ class SnpeModel(
         val isStateValid =
             !isClosed &&
                 isInitialized &&
-                inputBmp.width == config.inputNHWC[2] &&
-                inputBmp.height == config.inputNHWC[1]
+                inputBmp.width == config.inputNCHW[3] &&
+                inputBmp.height == config.inputNCHW[2]
 
         if (!isStateValid) return null
 

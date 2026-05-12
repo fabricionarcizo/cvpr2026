@@ -136,11 +136,14 @@ class BitmapRgbFloatPreprocessor {
     }
 
     /**
-     * Sums the blue channel values from the input pixel array while converting RGBA to raw-value
-     * BGR (YOLOX expects BGR channels at 0–255 float, no normalization).
+     * Sums the blue channel values from the input pixel array while converting RGBA to planar
+     * BGR (NCHW format: B channel plane, then G channel plane, then R channel plane).
      *
      * Android's ARGB_8888 bitmap stores bytes as [R, G, B, A] per pixel when copied with
-     * copyPixelsToBuffer. We reorder them to BGR for the model.
+     * copyPixelsToBuffer. We reorder them to planar BGR for the NCHW model input:
+     *   - Indices [0, pixelCount)             → B channel plane
+     *   - Indices [pixelCount, 2*pixelCount)  → G channel plane
+     *   - Indices [2*pixelCount, 3*pixelCount)→ R channel plane
      *
      * @param pixelCount The number of pixels to process.
      * @param inputArray The input byte array containing pixel data in RGBA format.
@@ -155,16 +158,15 @@ class BitmapRgbFloatPreprocessor {
 
         for (i in 0 until pixelCount) {
             val srcIndex = i * RGBA_CHANNELS
-            val dstIndex = i * RGB_CHANNELS
 
             val red = inputArray[srcIndex + RED_OFFSET].toInt() and BYTE_MASK
             val green = inputArray[srcIndex + GREEN_OFFSET].toInt() and BYTE_MASK
             val blue = inputArray[srcIndex + BLUE_OFFSET].toInt() and BYTE_MASK
 
-            // YOLOX expects BGR channel order at raw 0–255 scale (no /255 normalization).
-            tempFloatBuffer[dstIndex] = blue.toFloat()
-            tempFloatBuffer[dstIndex + 1] = green.toFloat()
-            tempFloatBuffer[dstIndex + 2] = red.toFloat()
+            // NCHW planar layout: B plane, G plane, R plane.
+            tempFloatBuffer[i] = blue.toFloat()
+            tempFloatBuffer[pixelCount + i] = green.toFloat()
+            tempFloatBuffer[pixelCount * 2 + i] = red.toFloat()
 
             blueSum += blue
         }
