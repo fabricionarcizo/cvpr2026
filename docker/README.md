@@ -96,6 +96,10 @@ http://localhost:8888
 
 No authentication token is required.
 
+The QAIRT and SNPE optimization notebooks in `docker/notebooks/` preserve the
+original LibreYOLO `images` input interface as `1 × 3 × 640 × 640` (NCHW) when
+they generate DLC files.
+
 ---
 
 ## ⏱️ First Build Time — Approximately 10 Minutes

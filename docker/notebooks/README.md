@@ -69,10 +69,10 @@ LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
 |---|---|
 | **1. Imports** | Load `cv2`, `glob`, `os`, `random`, `torch`, `uuid`, `numpy`, and `libreyolo`. |
 | **2. Preprocessing functions** | Define `letterbox()` — top-left letterbox resize to 640 × 640 with pad value 114, BGR color, 0–255 float32. Define `preprocess()` — calls `letterbox()` and transposes HWC → CHW. No normalization, no BGR→RGB conversion. |
-| **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 2000 images (`seed=42`), load each with `cv2.imread()` (BGR), preprocess, save as a `.raw` binary file (CHW layout), and generate `raw/filenames.txt` for `qairt-quantizer`. |
+| **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 1000 images (`seed=42`), load each with `cv2.imread()` (BGR), preprocess, save as a `.raw` binary file (CHW layout), and generate `raw/filenames.txt` for `qairt-quantizer`. |
 | **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640), then apply `_split_onnx_for_dsp()` to restructure the graph and produce two independent outputs: `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81). |
-| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`. |
-| **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`. |
+| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`, explicitly preserving the original `images` input layout as NCHW (`1 × 3 × 640 × 640`). |
+| **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`, verifying that the app-facing input remains NCHW even if QAIRT inserts an internal transpose to its native layout. |
 | **7. INT8 quantization** | Apply PTQ using `qairt-quantizer` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC using `qairt-dlc-info` to confirm quantized layer types and reduced model size. |
 
@@ -114,10 +114,10 @@ interface.
 |---|---|
 | **1. Imports** | Same libraries as the QAIRT notebook. |
 | **2. Preprocessing functions** | Same `letterbox()` and `preprocess()` functions as the QAIRT notebook. |
-| **3. Calibration dataset** | Same COCO 2017 val download, 2000-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
+| **3. Calibration dataset** | Same COCO 2017 val download, 1000-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
 | **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook — exports with single output `detections`, then calls `_split_onnx_for_dsp()` to restructure the graph and produce `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81); idempotent (skips restructuring if already done). |
-| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`. |
-| **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info`. |
+| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`, explicitly preserving the original `images` input layout as NCHW (`1 × 3 × 640 × 640`). |
+| **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info` and confirm that the exported DLC still exposes the original NCHW input contract. |
 | **7. INT8 quantization** | Apply PTQ using `snpe-dlc-quantize` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
 | **8. INT8 DLC inspection** | Verify the INT8 DLC with `snpe-dlc-info`. |
 | **9. HTP graph compilation** | Compile the INT8 DLC offline for the **Hexagon Tensor Processor (HTP)** on the **Snapdragon 778G (sm7325)** using `snpe-dlc-graph-prepare`. Produces a pre-compiled DLC for maximum HTP utilization on-device. |
@@ -177,13 +177,18 @@ def preprocess(original_image: np.ndarray, size: int = 640) -> np.ndarray:
 | Color format | BGR (no BGR→RGB conversion) |
 | Resize method | Top-left letterbox with bilinear interpolation, pad value 114 |
 
+The generated QAIRT and SNPE DLCs are expected to keep the public `images`
+input at `(1, 3, 640, 640)` in NCHW order. QAIRT may still show an internal
+transpose to NHWC after that preserved app-facing input when inspected with
+`qairt-dlc-info`.
+
 ### Calibration dataset
 
 | Property | Value |
 |---|---|
 | Source | COCO 2017 validation set |
 | Download size | ~777 MB |
-| Images sampled | 2000 |
+| Images sampled | 1000 |
 | Random seed | 42 |
 | Image loader | `cv2.imread()` (BGR) |
 | Format | `.raw` (flat `float32` binary, CHW layout) |

@@ -87,6 +87,11 @@ on Hugging Face.
 | Value range | `[0.0, 255.0]` |
 | Color order | BGR |
 
+Both notebook pipelines preserve this public `images` input contract when
+producing the QAIRT and SNPE DLCs. QAIRT may still insert an internal transpose
+to its native NHWC execution layout, but the notebook-facing / app-facing input
+must remain `1 × 3 × 640 × 640`.
+
 Preprocessing steps:
 1. **Letterbox-resize** the image to **640 × 640**: scale uniformly so the longest side fits 640, place the resized image at top-left, and fill the remaining area with constant value `114` (float32).
 2. Keep the BGR color order — **no BGR→RGB conversion**.
