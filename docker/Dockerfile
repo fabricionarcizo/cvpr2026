@@ -104,6 +104,8 @@ RUN \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
         jupyterlab \
         libreyolo \
+        qai-hub \
+        python-dotenv \
         onnx==1.16.0 \
         onnxruntime==1.18.0 \
         onnxscript==0.1.0 \
