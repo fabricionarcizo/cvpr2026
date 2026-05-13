@@ -102,11 +102,14 @@ RUN \
 # Installs the necessary Python packages for the project using pip.
 RUN \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
+        ipywidgets \
         jupyterlab \
+        jupyterlab_widgets \
         libreyolo \
         onnxsim \
         qai-hub \
         python-dotenv \
+        widgetsnbextension \
         onnx==1.16.0 \
         onnxruntime==1.18.0 \
         onnxscript==0.1.0 \
