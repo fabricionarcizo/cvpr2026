@@ -1,214 +1,178 @@
 # Docker Environment
 
-This directory contains the Docker configuration for the **QAIRT/SNPE Toolchain**
-— an Ubuntu 22.04-based container that provides the
-[Qualcomm AI Runtime (QAIRT) SDK](https://www.qualcomm.com/developer/artificial-intelligence),
-the Snapdragon Neural Processing Engine (SNPE) SDK, and a JupyterLab server for
-running the model optimization notebooks.
+This directory contains the Docker-based workspace used to optimize
+**LibreYOLOXs** for Qualcomm(R) Snapdragon devices. The image bundles a local
+**Qualcomm AI Runtime (QAIRT) / SNPE** toolchain and the Python dependencies
+needed for the tracked notebooks:
+
+- `notebooks/qairt_optimizer.ipynb` - local QAIRT conversion and INT8 quantization
+- `notebooks/snpe_optimizer.ipynb` - local SNPE conversion, INT8 quantization, and DLC inspection
+- `notebooks/qaihub_optimizer.ipynb` - cloud compilation, quantization, and profiling through QAI Hub
 
 ---
 
-## ⚠️ Architecture Requirements — Intel/AMD x86_64 Only
+## Host requirements
 
-> **This Docker environment only works on Intel or AMD x86_64 processors.**
-> **It is NOT compatible with Apple Silicon (M1, M2, M3, M4).**
+### Local SDK workflows: x86_64 only
 
-### Why Apple Silicon is not supported
-
-The Qualcomm AI Runtime (QAIRT) SDK is distributed **exclusively as
-`x86_64-linux-clang` binaries**. This is reflected directly in the
-`Dockerfile`:
+The Docker image is built around Qualcomm's `x86_64-linux-clang` SDK binaries:
 
 ```dockerfile
 ENV LD_LIBRARY_PATH="${QAIRT_SDK_ROOT}/lib/x86_64-linux-clang"
 ENV PATH="${QAIRT_SDK_ROOT}/bin/x86_64-linux-clang:${PATH}"
 ```
 
-All QAIRT command-line tools (`qairt-converter`, `qairt-quantizer`,
-`qairt-dlc-info`, `check-linux-dependency.sh`, `check-python-dependency`)
-are compiled x86_64 ELF executables. Qualcomm does not provide an AArch64
-Linux build of the SDK.
+That means the local QAIRT and SNPE notebook workflows are supported only on
+**Intel/AMD x86_64 Linux or Windows hosts running Docker**.
 
-Apple Silicon Macs (M-series) run Docker on an **AArch64** kernel. While
-Docker Desktop offers x86_64 emulation via **Rosetta 2**, this emulation is
-not reliable for the QAIRT SDK: the dependency-checking scripts and SDK tools
-fail or produce incorrect results under emulation. For this reason, Apple
-Silicon hosts are **not supported**.
-
-### Supported host architectures
-
-| Architecture | Support |
+| Host architecture | QAIRT / SNPE notebooks |
 |---|---|
-| Intel / AMD x86_64 | ✅ Supported |
-| Apple Silicon AArch64 (M1/M2/M3/M4) | ❌ Not supported |
-| ARM64 Linux | ❌ Not supported |
+| Intel / AMD x86_64 | Supported |
+| Apple Silicon (M1/M2/M3/M4) | Not supported |
+| ARM64 Linux | Not supported |
+
+> QAI Hub itself is a cloud service, but this repository still runs its QAI Hub
+> notebook inside the same Docker environment for reproducible preprocessing,
+> ONNX export, and artifact management.
 
 ---
 
-## Tested Platforms
+## Directory layout
 
-This environment has been built and tested on the following host operating
-systems:
-
-| Host OS | Architecture | Docker Runtime |
-|---|---|---|
-| **Linux Ubuntu 24.04 LTS** | x86_64 | Docker Engine |
-| **Windows 11** | x86_64 | Docker Desktop |
-
----
-
-## Contents
-
-```
+```text
 docker/
-├── Dockerfile             # Image build definition (Ubuntu 22.04 + QAIRT SDK + JupyterLab)
-├── docker-compose.yml     # Service configuration (ports, volumes, environment)
-├── README.md              # This file
-├── models/                # Model files — see models/README.md
-└── notebooks/             # Jupyter Notebooks — see notebooks/README.md
+|- Dockerfile
+|- docker-compose.yml
+|- README.md
+|- models/
+|  `- README.md
+`- notebooks/
+   |- qaihub_optimizer.ipynb
+   |- qairt_optimizer.ipynb
+   |- snpe_optimizer.ipynb
+   `- README.md
 ```
 
----
+See:
 
-## Prerequisites
-
-- **Docker Engine** (Linux) or **Docker Desktop** (Windows) — [Install Docker](https://docs.docker.com/get-started/get-docker/)
-- **Docker Compose** — included with Docker Desktop; for Linux follow the [Compose install guide](https://docs.docker.com/compose/install/)
-- A host machine with an **Intel or AMD x86_64 processor** (see [Architecture Requirements](#️-architecture-requirements--intelamd-x86_64-only) above)
-- At least **10 GB of free disk space** for the Docker image and downloaded assets
+- [`models/README.md`](models/README.md) for generated model artifacts and download details
+- [`notebooks/README.md`](notebooks/README.md) for notebook-specific workflows
 
 ---
 
-## Quick Start
+## What the image installs
 
-All commands below should be run from the `docker/` directory.
+### Base environment
+
+| Component | Value |
+|---|---|
+| Base image | `ubuntu:22.04` |
+| QAIRT SDK version | `2.41.0.251128` |
+| JupyterLab port | `8888` |
+| Working directory | `/workspace/notebooks` |
+| Container name | `gn-qairt-toolchain` |
+
+### Python packages installed in the image
+
+| Package | Notes |
+|---|---|
+| `jupyterlab` | Notebook UI inside the container |
+| `libreyolo` | Loads and exports the LibreYOLO model |
+| `onnxsim` | ONNX graph simplification support |
+| `qai-hub` | QAI Hub client for remote compile/profile jobs |
+| `python-dotenv` | Reads notebook-local QAI Hub token configuration |
+| `onnx==1.16.0` | ONNX export and inspection |
+| `onnxruntime==1.18.0` | ONNX inference / validation |
+| `onnxscript==0.1.0` | ONNX graph tooling support |
+| `numpy==1.26.4` | Shared notebook preprocessing and calibration utilities |
+
+---
+
+## Quick start
+
+Run all commands from `docker/`.
+
+### 1. Build and start the container
 
 ```bash
-# Build the image and start the container in the background
 docker compose up --build -d
 ```
 
-Once the container is running, open JupyterLab in your browser:
+### 2. Open JupyterLab
 
-```
+```text
 http://localhost:8888
 ```
 
-No authentication token is required.
+JupyterLab is started without an auth token by `docker-compose.yml`, so the
+tracked notebooks are available immediately in the file browser.
 
-The QAIRT and SNPE optimization notebooks in `docker/notebooks/` preserve the
-original LibreYOLO `images` input interface as `1 × 3 × 640 × 640` (NCHW) when
-they generate DLC files.
-
----
-
-## ⏱️ First Build Time — Approximately 10 Minutes
-
-> **The first build downloads the QAIRT SDK (~200 MB) and installs all
-> dependencies. Expect it to take around 10 minutes** depending on your
-> internet connection and hardware.
-
-The breakdown below is based on a measured build log:
-
-| Layer | Time | Description |
-|---|---|---|
-| Pull `ubuntu:22.04` | ~2 s | Download base image from Docker Hub |
-| `apt update && upgrade` | ~7 s | Update package lists and upgrade installed packages |
-| `apt install` curl, unzip | ~7 s | Install bootstrap tools |
-| Download & unzip QAIRT SDK | ~94 s | Download SDK zip from Qualcomm Software Center and extract |
-| `check-linux-dependency.sh` | ~94 s | Install all QAIRT system dependencies via apt |
-| `apt install` build-essential, nodejs, npm, python3 | ~32 s | Install development tools |
-| Create venv + `check-python-dependency` | ~119 s | Create Python virtual environment and install QAIRT Python deps |
-| `pip install` JupyterLab + ML packages | ~94 s | Install project Python packages |
-| Export and unpack image layers | ~158 s | Finalize and store the image locally |
-| **Total** | **~609 s (~10 min)** | |
-
-Subsequent starts (without `--build`) are immediate — the image is cached
-locally and the container starts in under 1 second.
-
----
-
-## Service Details
-
-| Property | Value |
-|---|---|
-| Container name | `gn-qairt-toolchain` |
-| Image name | `gn-qairt-toolchain` |
-| Base image | `ubuntu:22.04` |
-| QAIRT SDK version | `v2.41.0.251128` |
-| Exposed port | `8888` (JupyterLab) |
-| Working directory | `/workspace/notebooks` |
-| Restart policy | `unless-stopped` |
-| Timezone | `Europe/Copenhagen` |
-
----
-
-## Volume Mounts
-
-The container mounts the following directories from the host:
-
-| Host path | Container path | Access | Description |
-|---|---|---|---|
-| `./models` | `/workspace/models` | Read/Write | Model files (`.pt`, `.onnx`, `.dlc`) |
-| `./notebooks` | `/workspace/notebooks` | Read/Write | Jupyter Notebooks and generated data |
-| `/etc/localtime` | `/etc/localtime` | Read-only | Host timezone data |
-| `/etc/timezone` | `/etc/timezone` | Read-only | Host timezone identifier |
-
----
-
-## Python Environment
-
-The Python virtual environment is located at `/opt/qairt-venv` inside the
-container. It is activated automatically via the `PATH` environment variable.
-
-| Package | Version |
-|---|---|
-| `jupyterlab` | Latest available at build time |
-| `libreyolo` | Latest available at build time |
-| `onnx` | `1.16.0` |
-| `onnxruntime` | `1.18.0` |
-| `onnxscript` | `0.1.0` |
-| `numpy` | `1.26.4` |
-
----
-
-## Useful Commands
-
-### Start the container
-
-```bash
-docker compose up -d
-```
-
-### Stop the container
+### 3. Stop the container
 
 ```bash
 docker compose down
 ```
 
-### Rebuild the image and restart
+---
+
+## QAI Hub configuration
+
+The `qaihub_optimizer.ipynb` notebook requires a QAI Hub API token. The tracked
+example file is:
+
+```text
+docker/notebooks/.env .example
+```
+
+Copy it to `docker/notebooks/.env` and set:
+
+```dotenv
+QAI_HUB_API_TOKEN=your_api_token_here
+```
+
+The notebook reads that value with `python-dotenv` before creating QAI Hub
+compile, quantize, and profile jobs.
+
+---
+
+## Volume mounts
+
+| Host path | Container path | Purpose |
+|---|---|---|
+| `./models` | `/workspace/models` | Downloaded and generated model artifacts |
+| `./notebooks` | `/workspace/notebooks` | Tracked notebooks plus generated notebook data |
+| `/etc/localtime` | `/etc/localtime` | Host timezone data |
+| `/etc/timezone` | `/etc/timezone` | Host timezone identifier |
+
+---
+
+## Common commands
+
+### Start without rebuilding
+
+```bash
+docker compose up -d
+```
+
+### Rebuild and restart
 
 ```bash
 docker compose down && docker compose build && docker compose up -d
 ```
 
-### View container logs
+### View logs
 
 ```bash
 docker compose logs -f
 ```
 
-### Open a terminal inside the container
+### Open a shell inside the container
 
 ```bash
 docker exec -it gn-qairt-toolchain /bin/bash
 ```
 
-This drops you into a shell at `/workspace/notebooks` with the QAIRT SDK tools
-(`qairt-converter`, `qairt-quantizer`, etc.) available on `PATH` and the Python
-virtual environment activated.
-
-### Remove the image and free disk space
+### Remove the image and mounted volumes
 
 ```bash
 docker compose down --rmi all --volumes
@@ -216,21 +180,9 @@ docker compose down --rmi all --volumes
 
 ---
 
-## Accessing JupyterLab
+## Notes on generated content
 
-After the container starts, open the following URL in your browser:
-
-```
-http://localhost:8888
-```
-
-JupyterLab is configured with `--allow-root` and no authentication token
-(`--IdentityProvider.token=''`), so no login is required. The notebooks in
-`docker/notebooks/` are available immediately in the file browser.
-
----
-
-## Further Reading
-
-- [`models/README.md`](models/README.md) — model files, formats, and download instructions
-- [`notebooks/README.md`](notebooks/README.md) — Jupyter Notebook documentation and pipeline details
+The repository tracks the notebooks and documentation, but most model binaries
+and notebook-generated data are created locally when you run the workflows. The
+current generated layout is documented in [`notebooks/README.md`](notebooks/README.md)
+and [`models/README.md`](models/README.md).

@@ -1,239 +1,182 @@
 # Jupyter Notebooks
 
-This directory contains Jupyter Notebooks that implement the full optimization
-pipeline for deploying **LibreYOLOXs** on Qualcomm® Snapdragon devices. Each
-notebook converts and quantizes the model using a different Qualcomm SDK,
-producing the DLC files that are published on Hugging Face.
+This directory contains the tracked notebooks used to prepare, convert,
+quantize, compile, and profile **LibreYOLOXs** for Qualcomm(R) Snapdragon
+devices.
 
-| Notebook | SDK | Description |
+All three notebooks share the same preprocessing and ONNX export foundations:
+
+- they download or reuse `../models/LibreYOLOXs.pt`
+- they export `../models/LibreYOLOXs.onnx`
+- they generate calibration data under `dataset/` and `subset/`
+- they preserve the public input tensor `images` with shape `1 x 3 x 640 x 640`
+
+---
+
+## Notebook overview
+
+| Notebook | Workflow | Outputs |
 |---|---|---|
-| [`qairt_optimizer.ipynb`](#qairt_optimizerippynb) | Qualcomm AI Runtime (QAIRT) | Converts and quantizes LibreYOLOXs using the QAIRT SDK toolchain |
-| [`snpe_optimizer.ipynb`](#snpe_optimizerippynb) | Snapdragon Neural Processing Engine (SNPE) | Converts, quantizes, and compiles LibreYOLOXs for HTP using the SNPE SDK toolchain |
+| [`qairt_optimizer.ipynb`](qairt_optimizer.ipynb) | Local QAIRT conversion, DLC inspection, and INT8 PTQ | `../models/qairt/*.dlc` |
+| [`snpe_optimizer.ipynb`](snpe_optimizer.ipynb) | Local SNPE conversion, DLC inspection, and INT8 PTQ | `../models/snpe/*.dlc` |
+| [`qaihub_optimizer.ipynb`](qaihub_optimizer.ipynb) | Cloud QAI Hub compile, quantize, and profile jobs | `../models/qaihub/*.dlc` plus remote profiling results |
 
 ---
 
 ## Prerequisites
 
-Before running the notebooks, ensure the following are in place:
-
-1. **Docker and Docker Compose** — Install [Docker Engine](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/).
-2. **Model files** — Download the pre-trained `LibreYOLOXs.pt` checkpoint into `docker/models/` **or** let the notebook download it automatically on first run. See [`docker/models/README.md`](../models/README.md) for details.
-3. **Disk space** — Allow approximately **2 GB** of free disk space:
-   - ~777 MB for the COCO 2017 validation set (downloaded automatically)
-   - ~200 MB for model files (`.pt`, `.onnx`, `.dlc`)
-
----
-
-## Starting the Environment
-
-All notebooks run inside the Docker container defined in `docker/Dockerfile`.
-The container exposes JupyterLab on port **8888**.
-
-### Build and start
-
-```bash
-# From the docker/ directory
-cd docker
-docker compose up --build -d
-```
-
-### Access JupyterLab
-
-Open your browser and navigate to:
-
-```
-http://localhost:8888
-```
-
-No authentication token is required. The notebooks are available immediately
-under the `notebooks/` directory in the JupyterLab file browser.
-
-### Stop the container
-
-```bash
-docker compose down
-```
+1. Start the Docker environment described in [`../README.md`](../README.md).
+2. Ensure you have enough local disk space for:
+   - the Docker image and SDK
+   - the downloaded LibreYOLO checkpoint and ONNX export
+   - the COCO validation images and generated calibration subsets
+3. For `qaihub_optimizer.ipynb`, create `docker/notebooks/.env` from the tracked
+   `docker/notebooks/.env .example` file and set `QAI_HUB_API_TOKEN`.
 
 ---
 
-## `qairt_optimizer.ipynb`
+## Shared pipeline
 
-**Optimizing LibreYOLO for Qualcomm® Snapdragon Devices Using QAIRT**
+### 1. Preprocessing and calibration data
 
-This notebook walks through the full pipeline to convert and quantize
-LibreYOLOXs using the **Qualcomm AI Runtime (QAIRT) SDK** (v2.41.0.251128).
+Each notebook:
 
-### Pipeline
+- downloads or reuses the COCO 2017 validation images under `dataset/`
+- samples a representative subset
+- writes calibration `.raw` tensors to `subset/calib/`
+- writes validation `.raw` tensors and metadata to `subset/val/`
+- generates `subset/calib/filenames.txt` and `subset/val/filenames.txt`
 
-| Step | Description |
-|---|---|
-| **1. Imports** | Load `cv2`, `glob`, `os`, `random`, `torch`, `uuid`, `numpy`, and `libreyolo`. |
-| **2. Preprocessing functions** | Define `letterbox()` — top-left letterbox resize to 640 × 640 with pad value 114, BGR color, 0–255 float32. Define `preprocess()` — calls `letterbox()` and transposes HWC → CHW. No normalization, no BGR→RGB conversion. |
-| **3. Calibration dataset** | Download the COCO 2017 validation set (~777 MB), randomly sample 1000 images (`seed=42`), load each with `cv2.imread()` (BGR), preprocess, save as a `.raw` binary file (CHW layout), and generate `raw/filenames.txt` for `qairt-quantizer`. |
-| **4. ONNX export** | Download `LibreYOLOXs.pt` from Hugging Face (if absent), load it with `LibreYOLO`, export to ONNX (opset 13) with input `images` (1 × 3 × 640 × 640), then apply `_split_onnx_for_dsp()` to restructure the graph and produce two independent outputs: `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81). |
-| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `qairt-converter`, explicitly preserving the original `images` input layout as NCHW (`1 × 3 × 640 × 640`). |
-| **6. FP32 DLC inspection** | Inspect the FP32 DLC graph (layer names, tensor shapes, backends) using `qairt-dlc-info`, verifying that the app-facing input remains NCHW even if QAIRT inserts an internal transpose to its native layout. |
-| **7. INT8 quantization** | Apply PTQ using `qairt-quantizer` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
-| **8. INT8 DLC inspection** | Verify the INT8 DLC using `qairt-dlc-info` to confirm quantized layer types and reduced model size. |
+### 2. ONNX export
 
-### CLI Tools
+Each notebook downloads or reuses `../models/LibreYOLOXs.pt`, exports
+`../models/LibreYOLOXs.onnx`, and validates the resulting output tensor shapes
+before running a backend-specific flow.
 
-| Tool | Purpose |
-|---|---|
-| `qairt-converter` | Converts an ONNX model to QAIRT's DLC format (FP32) |
-| `qairt-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `qairt-quantizer` | Applies post-training quantization using a calibration dataset; ONNX graph surgery (`_split_onnx_for_dsp()`) gives `bboxes` and `scores` separate INT8 scales, preventing score collapse on DSP |
+### 3. Backend-specific execution
 
-### Output Files
-
-All files are written to `../models/` relative to the notebook working directory
-(i.e., `docker/models/` in the repository).
-
-| File | Description |
-|---|---|
-| `LibreYOLOXs.pt` | Pre-trained PyTorch checkpoint (downloaded) |
-| `LibreYOLOXs.onnx` | ONNX export of the model (opset 13) |
-| `qairt/LibreYOLOXs_fp32.dlc` | QAIRT floating-point DLC |
-| `qairt/LibreYOLOXs_int8.dlc` | QAIRT quantized DLC (INT8 weights and activations) |
+- **QAIRT notebook** uses local CLI tools such as `qairt-converter`,
+  `qairt-dlc-info`, and `qairt-quantizer`.
+- **SNPE notebook** uses local CLI tools such as `snpe-onnx-to-dlc`,
+  `snpe-dlc-info`, and `snpe-dlc-quantize`.
+- **QAI Hub notebook** uploads the ONNX model to Qualcomm's cloud service,
+  submits compile / quantize / profile jobs, and downloads the resulting DLCs.
 
 ---
 
-## `snpe_optimizer.ipynb`
+## Notebook details
 
-**Optimizing LibreYOLO for Qualcomm® Snapdragon Devices Using SNPE**
+### `qairt_optimizer.ipynb`
 
-This notebook walks through the full pipeline to convert, quantize, and compile
-LibreYOLOXs using the **Snapdragon Neural Processing Engine (SNPE) SDK**. The
-SNPE CLI flow is used because it is still widely deployed for DLC-based
-on-device inference. For newer projects, the QAIRT tools offer a more unified
-interface.
+**Optimizing LibreYOLO for Qualcomm(R) Snapdragon Devices Using QAIRT**
 
-### Pipeline
+Pipeline summary:
 
-| Step | Description |
-|---|---|
-| **1. Imports** | Same libraries as the QAIRT notebook. |
-| **2. Preprocessing functions** | Same `letterbox()` and `preprocess()` functions as the QAIRT notebook. |
-| **3. Calibration dataset** | Same COCO 2017 val download, 1000-image sampling, and `.raw` / `filenames.txt` generation (idempotent — reuses existing files). |
-| **4. ONNX export** | Same PyTorch → ONNX export as the QAIRT notebook — exports with single output `detections`, then calls `_split_onnx_for_dsp()` to restructure the graph and produce `bboxes` (1 × 8400 × 4) and `scores` (1 × 8400 × 81); idempotent (skips restructuring if already done). |
-| **5. FP32 DLC conversion** | Convert the ONNX model to a floating-point DLC using `snpe-onnx-to-dlc`, explicitly preserving the original `images` input layout as NCHW (`1 × 3 × 640 × 640`). |
-| **6. FP32 DLC inspection** | Inspect the FP32 DLC using `snpe-dlc-info` and confirm that the exported DLC still exposes the original NCHW input contract. |
-| **7. INT8 quantization** | Apply PTQ using `snpe-dlc-quantize` with the calibration `.raw` samples. ONNX graph surgery ensures `bboxes` and `scores` each get their own INT8 scale, preventing score collapse on DSP. |
-| **8. INT8 DLC inspection** | Verify the INT8 DLC with `snpe-dlc-info`. |
-| **9. HTP graph compilation** | Compile the INT8 DLC offline for the **Hexagon Tensor Processor (HTP)** on the **Snapdragon 778G (sm7325)** using `snpe-dlc-graph-prepare`. Produces a pre-compiled DLC for maximum HTP utilization on-device. |
-| **10. HTP DLC inspection** | Verify the compiled DLC with `snpe-dlc-info` to confirm HTP-specific optimizations. |
+1. Prepare calibration and validation subsets from COCO 2017.
+2. Export LibreYOLOXs to ONNX.
+3. Validate ONNX output shapes.
+4. Convert the ONNX model to FP32 DLC with `qairt-converter`.
+5. Inspect the FP32 DLC with `qairt-dlc-info`.
+6. Quantize to INT8 with `qairt-quantizer` using `subset/calib/filenames.txt`.
+7. Inspect the INT8 DLC.
 
-### CLI Tools
+Outputs:
 
-| Tool | Purpose |
-|---|---|
-| `snpe-onnx-to-dlc` | Converts an ONNX model to SNPE's DLC format (FP32) |
-| `snpe-dlc-info` | Inspects DLC graph structure, tensor shapes, and supported backends |
-| `snpe-dlc-quantize` | Applies post-training quantization using a calibration dataset; ONNX graph surgery (`_split_onnx_for_dsp()`) gives `bboxes` and `scores` separate INT8 scales, preventing score collapse on DSP |
-| `snpe-dlc-graph-prepare` | Compiles the DLC graph offline for a specific Snapdragon HTP SoC |
+- `../models/qairt/LibreYOLOXs_fp32.dlc`
+- `../models/qairt/LibreYOLOXs_int8.dlc`
 
-### Output Files
+### `snpe_optimizer.ipynb`
 
-All files are written to `../models/` relative to the notebook working directory
-(i.e., `docker/models/` in the repository).
+**Optimizing LibreYOLO for Qualcomm(R) Snapdragon Devices Using SNPE**
 
-| File | Description |
-|---|---|
-| `LibreYOLOXs.pt` | Pre-trained PyTorch checkpoint (shared with QAIRT notebook) |
-| `LibreYOLOXs.onnx` | ONNX export of the model (shared with QAIRT notebook) |
-| `snpe/LibreYOLOXs_fp32.dlc` | SNPE floating-point DLC |
-| `snpe/LibreYOLOXs_int8.dlc` | SNPE quantized DLC (INT8 weights and activations) |
-| `snpe/LibreYOLOXs_int8_sm7325.dlc` | SNPE quantized DLC with offline HTP compilation for Snapdragon 778G (INT8 weights and activations) |
+Pipeline summary:
+
+1. Prepare calibration and validation subsets from COCO 2017.
+2. Export LibreYOLOXs to ONNX.
+3. Validate ONNX output shapes.
+4. Convert the ONNX model to FP32 DLC with `snpe-onnx-to-dlc`.
+5. Inspect the FP32 DLC with `snpe-dlc-info`.
+6. Quantize to INT8 with `snpe-dlc-quantize` using `subset/calib/filenames.txt`.
+7. Inspect the INT8 DLC.
+
+Outputs:
+
+- `../models/snpe/LibreYOLOXs_fp32.dlc`
+- `../models/snpe/LibreYOLOXs_int8.dlc`
+
+### `qaihub_optimizer.ipynb`
+
+**Optimizing LibreYOLO for Qualcomm(R) Snapdragon Devices Using QAI Hub**
+
+Pipeline summary:
+
+1. Prepare calibration and validation subsets from COCO 2017.
+2. Export LibreYOLOXs to ONNX.
+3. Validate ONNX output shapes.
+4. Load `QAI_HUB_API_TOKEN` from `docker/notebooks/.env`.
+5. Query supported QAI Hub devices.
+6. Upload the ONNX model and compile an FP32 DLC in the cloud.
+7. Profile the FP32 DLC remotely.
+8. Submit a cloud quantization job using the calibration tensors.
+9. Compile and profile the INT8 DLC remotely.
+
+Outputs:
+
+- `../models/qaihub/LibreYOLOXs_fp32.dlc`
+- `../models/qaihub/LibreYOLOXs_int8.dlc`
+- remote QAI Hub job metadata and profiling results shown in the notebook
 
 ---
 
-## Shared Resources
-
-Both notebooks share the following resources and conventions.
-
-### `letterbox()` and `preprocess()` functions
-
-```python
-def letterbox(image: np.ndarray, target: int = 640, pad_value: int = 114) -> tuple:
-    h, w = image.shape[:2]
-    ratio = min(target / h, target / w)
-    new_w, new_h = int(w * ratio), int(h * ratio)
-    resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-    padded = np.full((target, target, 3), pad_value, dtype=np.float32)
-    padded[:new_h, :new_w] = resized
-    return padded, ratio
-
-def preprocess(original_image: np.ndarray, size: int = 640) -> np.ndarray:
-    padded, _ = letterbox(original_image, size)
-    tensor = padded.transpose(2, 0, 1)  # HWC → CHW
-    return np.ascontiguousarray(tensor)
-```
+## Shared preprocessing contract
 
 | Property | Value |
 |---|---|
-| Output shape | `(3, 640, 640)` (CHW) |
+| Input name | `images` |
+| Input shape | `1 x 3 x 640 x 640` |
+| Tensor layout | NCHW |
 | Data type | `float32` |
-| Value range | `[0.0, 255.0]` |
-| Color format | BGR (no BGR→RGB conversion) |
-| Resize method | Top-left letterbox with bilinear interpolation, pad value 114 |
+| Color order | BGR |
+| Resize strategy | Letterbox resize to `640 x 640` |
+| Padding value | `114` |
+| Normalization | None; values remain in the `0-255` range |
 
-The generated QAIRT and SNPE DLCs are expected to keep the public `images`
-input at `(1, 3, 640, 640)` in NCHW order. QAIRT may still show an internal
-transpose to NHWC after that preserved app-facing input when inspected with
-`qairt-dlc-info`.
-
-### Calibration dataset
-
-| Property | Value |
-|---|---|
-| Source | COCO 2017 validation set |
-| Download size | ~777 MB |
-| Images sampled | 1000 |
-| Random seed | 42 |
-| Image loader | `cv2.imread()` (BGR) |
-| Format | `.raw` (flat `float32` binary, CHW layout) |
-| Manifest | `raw/filenames.txt` |
-
-### Idempotency
-
-Both notebooks are designed to be **re-runnable without side effects**. Each
-step checks whether its output already exists before executing:
-- The COCO validation set is not re-downloaded if `val/` exists.
-- The `.raw` calibration files are not regenerated if `raw/` exists.
-- `LibreYOLOXs.pt` is not re-downloaded if it already exists in `../models/`.
-- `LibreYOLOXs.onnx` is not re-exported if it already exists; graph surgery is always re-applied but is idempotent (no-op if already done).
+The calibration `.raw` files are written in CHW order and are reused by the
+local quantization flow and the QAI Hub cloud quantization flow.
 
 ---
 
-## Directory Structure
+## Working directory layout
 
-```
+```text
 docker/notebooks/
-├── qairt_optimizer.ipynb       # QAIRT optimization pipeline
-├── snpe_optimizer.ipynb        # SNPE optimization pipeline
-├── README.md                   # This file
-├── val/                        # COCO 2017 val images (auto-downloaded, ~777 MB)
-├── raw/                        # Calibration .raw files + filenames.txt (auto-generated)
-├── output/                     # Notebook output artefacts
-├── .ipynb_checkpoints/         # JupyterLab checkpoint files (auto-managed)
-└── .pkl_memoize_py3/           # Memoization cache (auto-generated by libreyolo)
+|- .env
+|- .env .example
+|- .gitignore
+|- README.md
+|- dataset/
+|- output/
+|- subset/
+|- weights/
+|- qaihub_optimizer.ipynb
+|- qairt_optimizer.ipynb
+`- snpe_optimizer.ipynb
 ```
 
-> **Note:** The `val/`, `raw/`, `output/`, `.ipynb_checkpoints/`, and
-> `.pkl_memoize_py3/` directories are listed in `.gitignore` and are not
-> tracked by Git. They are created automatically when the notebooks are run.
+The generated directories are ignored by Git via `.gitignore`:
+
+- `dataset/`
+- `output/`
+- `subset/`
+- `weights/`
 
 ---
 
-## Recommended Execution Order
+## Execution notes
 
-Run the notebooks in the following order to avoid redundant downloads and
-exports, since both share `LibreYOLOXs.pt` and `LibreYOLOXs.onnx`:
-
-```
-1. qairt_optimizer.ipynb   ← downloads .pt, generates .onnx, produces QAIRT DLCs
-2. snpe_optimizer.ipynb    ← reuses .pt and .onnx, produces SNPE DLCs
-```
-
-If you only need SNPE models, run `snpe_optimizer.ipynb` first — it will
-download and export the model as part of its own pipeline.
+- The notebooks are designed to reuse existing downloads and exported models
+  when the expected files are already present.
+- Running one notebook first usually prepares shared artifacts (`.pt`, `.onnx`,
+  calibration subsets) for the others.
+- If you only need cloud compilation and profiling, you can run the QAI Hub
+  notebook without using the local QAIRT or SNPE conversion steps.
