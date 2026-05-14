@@ -4,7 +4,7 @@ This directory contains the tracked notebooks used to prepare, convert,
 quantize, compile, and profile **LibreYOLOXs** for Qualcomm(R) Snapdragon
 devices.
 
-All three notebooks share the same preprocessing and ONNX export foundations:
+All four notebooks share the same preprocessing and ONNX export foundations:
 
 - they download or reuse `../models/LibreYOLOXs.pt`
 - they export `../models/LibreYOLOXs.onnx`
@@ -20,6 +20,7 @@ All three notebooks share the same preprocessing and ONNX export foundations:
 | [`qairt_optimizer.ipynb`](qairt_optimizer.ipynb) | Local QAIRT conversion, DLC inspection, and INT8 PTQ | `../models/qairt/*.dlc` |
 | [`snpe_optimizer.ipynb`](snpe_optimizer.ipynb) | Local SNPE conversion, DLC inspection, and INT8 PTQ | `../models/snpe/*.dlc` |
 | [`qaihub_optimizer.ipynb`](qaihub_optimizer.ipynb) | Cloud QAI Hub compile, quantize, and profile jobs | `../models/qaihub/*.dlc` plus remote profiling results |
+| [`models_analysis.ipynb`](models_analysis.ipynb) | Cross-pipeline comparison, validation, and report generation | `reports/figures/*`, `reports/tables/*`, and analysis artifacts under `reports/` |
 
 ---
 
@@ -126,6 +127,23 @@ Outputs:
 - `../models/qaihub/LibreYOLOXs_int8.dlc`
 - remote QAI Hub job metadata and profiling results shown in the notebook
 
+### `models_analysis.ipynb`
+
+**LibreYOLOXs Model Analysis for Qualcomm Edge AI**
+
+Pipeline summary:
+
+1. Reuse the shared ONNX export and generated DLC artifacts when available.
+2. Collect model metadata, profiling results, output similarity metrics, and accuracy summaries.
+3. Generate comparison tables under `reports/tables/`.
+4. Render summary figures under `reports/figures/`.
+
+Outputs:
+
+- `reports/figures/*`
+- `reports/tables/*`
+- additional analysis artifacts under `reports/`
+
 ---
 
 ## Shared preprocessing contract
@@ -158,6 +176,7 @@ docker/notebooks/
 |- output/
 |- subset/
 |- weights/
+|- models_analysis.ipynb
 |- qaihub_optimizer.ipynb
 |- qairt_optimizer.ipynb
 `- snpe_optimizer.ipynb
@@ -180,3 +199,5 @@ The generated directories are ignored by Git via `.gitignore`:
   calibration subsets) for the others.
 - If you only need cloud compilation and profiling, you can run the QAI Hub
   notebook without using the local QAIRT or SNPE conversion steps.
+- `models_analysis.ipynb` is configured for headless Docker execution and saves
+  figures with Matplotlib's `Agg` backend instead of relying on inline display.
