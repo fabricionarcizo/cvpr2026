@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,8 +10,25 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
 android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(localProperties.getProperty("store.file"))
+            storePassword = localProperties.getProperty("store.password")
+            keyAlias = localProperties.getProperty("key.alias")
+            keyPassword = localProperties.getProperty("key.password")
+        }
+    }
+
     namespace = "com.fabricionarcizo.edgevisionai"
+
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -33,10 +52,12 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -51,6 +72,10 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    lint {
+        disable += "ExpiredTargetSdkVersion"
     }
 }
 

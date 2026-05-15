@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep all classes in the com.qualcomm package and its subpackages, including com.qualcomm.qti.snpe,
+# and their members.
+-keep class com.qualcomm.** { *; }
+-keep class com.qualcomm.qti.snpe.** { *; }
+-dontwarn com.qualcomm.**

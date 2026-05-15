@@ -30,11 +30,11 @@ package com.fabricionarcizo.edgevisionai.ml.config
  */
 object ModelRegistry {
     /**
-     * Configuration for the LibreYOLOXs INT8 quantized model (Qualcomm SM7325).
+     * Configuration for the LibreYOLOXs INT8 quantized model.
      */
     val objectDetectorConfig =
         ModelConfig(
-            fileName = "LibreYOLOXs_int8_sm7325.dlc",
+            fileName = "LibreYOLOXs_int8.dlc",
             inputNCHW = intArrayOf(1, 3, 640, 640).toList(),
             inputLayerName = "images",
             outputLayerNames = listOf("bboxes", "scores"),
