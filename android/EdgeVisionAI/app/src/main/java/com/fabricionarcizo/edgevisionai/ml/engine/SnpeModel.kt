@@ -279,7 +279,7 @@ class SnpeModel(
                             },
                         ).setOutputLayers(*outputLayers)
                         .setModel(stream, stream.available())
-                        .setPerformanceProfile(NeuralNetwork.PerformanceProfile.DEFAULT)
+                        .setPerformanceProfile(NeuralNetwork.PerformanceProfile.HIGH_PERFORMANCE)
                         .setRuntimeOrder(NeuralNetwork.Runtime.DSP)
                         .setCpuFallbackEnabled(false)
                         .build()

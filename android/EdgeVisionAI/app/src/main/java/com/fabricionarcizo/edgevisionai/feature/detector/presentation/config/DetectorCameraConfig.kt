@@ -49,7 +49,7 @@ data class DetectorCameraConfig(
     val aspectRatioStrategy: AspectRatioStrategy =
         AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY,
     val allowedResolutionMode: Int =
-        ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE,
+        ResolutionSelector.PREFER_CAPTURE_RATE_OVER_HIGHER_RESOLUTION,
     val backpressureStrategy: Int = ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST,
     val depth: Int = 1,
     val outputImageFormat: Int = ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888,
