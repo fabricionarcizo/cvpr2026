@@ -44,6 +44,9 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        buildConfigField("Boolean", "ENABLE_PERFORMANCE_LOGGING", "false")
+        buildConfigField("String", "APP_TAG", "\"PSNPE\"")
+
         ndk {
             abiFilters.add("arm64-v8a") // Compile the APK only for ARM64 devices.
         }
@@ -72,6 +75,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     lint {

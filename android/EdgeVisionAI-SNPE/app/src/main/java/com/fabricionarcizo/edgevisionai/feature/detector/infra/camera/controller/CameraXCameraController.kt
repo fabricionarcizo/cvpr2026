@@ -39,6 +39,7 @@ import com.fabricionarcizo.edgevisionai.feature.detector.infra.camera.model.Fram
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.image.FrameTransformer
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.image.ImageProxyToBitmapConverter
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.perf.FPSTracker
+import com.fabricionarcizo.edgevisionai.feature.detector.infra.perf.PerformanceLogger
 import com.fabricionarcizo.edgevisionai.feature.detector.presentation.config.DetectorCameraConfig
 
 /**
@@ -55,6 +56,7 @@ class CameraXCameraController(
     private val imageProxyToBitmapConverter: ImageProxyToBitmapConverter,
     private val frameTransformer: FrameTransformer,
     private val frameAnalyzer: FrameAnalyzer,
+    private val performanceLogger: PerformanceLogger,
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
 ) : FrameSource {
     /**
@@ -272,6 +274,14 @@ class CameraXCameraController(
 
             fpsTracker.frameProcessed()
             val fps = fpsTracker.fps
+
+            performanceLogger.onFrame(
+                fps = fps,
+                convertMs = convertMs,
+                transformMs = transformMs,
+                inferenceMs = inferenceMs,
+                totalMs = totalMs,
+            )
 
             mainHandler.post {
                 onResults(

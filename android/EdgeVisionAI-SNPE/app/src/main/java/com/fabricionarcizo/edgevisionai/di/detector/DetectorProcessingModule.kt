@@ -20,11 +20,14 @@
  */
 package com.fabricionarcizo.edgevisionai.di.detector
 
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
+import com.fabricionarcizo.edgevisionai.BuildConfig
 import com.fabricionarcizo.edgevisionai.feature.detector.application.DetectorDetectionsMapper
 import com.fabricionarcizo.edgevisionai.feature.detector.application.FrameProcessor
 import com.fabricionarcizo.edgevisionai.feature.detector.domain.ports.FrameAnalyzer
@@ -32,6 +35,7 @@ import com.fabricionarcizo.edgevisionai.feature.detector.domain.ports.FrameSourc
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.camera.controller.CameraXCameraController
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.image.FrameTransformer
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.image.ImageProxyToBitmapConverter
+import com.fabricionarcizo.edgevisionai.feature.detector.infra.perf.PerformanceLogger
 import com.fabricionarcizo.edgevisionai.feature.detector.presentation.config.DetectorCameraConfig
 import com.fabricionarcizo.edgevisionai.ml.pipeline.DetectionPipeline
 
@@ -41,6 +45,23 @@ import com.fabricionarcizo.edgevisionai.ml.pipeline.DetectionPipeline
 @Module
 @InstallIn(ViewModelComponent::class)
 object DetectorProcessingModule {
+    /**
+     * Provides a [PerformanceLogger] instance.
+     *
+     * @param context The application context.
+     *
+     * @return [PerformanceLogger] instance.
+     */
+    @Provides
+    @ViewModelScoped
+    fun providePerformanceLogger(
+        @ApplicationContext context: Context,
+    ): PerformanceLogger =
+        PerformanceLogger(
+            context = context,
+            appTag = BuildConfig.APP_TAG,
+        )
+
     /**
      * Provides an instance of [FrameProcessor].
      *
@@ -78,6 +99,7 @@ object DetectorProcessingModule {
      * @param imageProxyToBitmapConverter The converter to convert ImageProxy to RGBA Bitmap.
      * @param frameTransformer The transformer to apply transformations to frames.
      * @param frameAnalyzer The analyzer to process frames.
+     * @param performanceLogger The logger for collecting performance metrics.
      *
      * @return [FrameSource] instance.
      */
@@ -88,11 +110,13 @@ object DetectorProcessingModule {
         imageProxyToBitmapConverter: ImageProxyToBitmapConverter,
         frameTransformer: FrameTransformer,
         frameAnalyzer: FrameAnalyzer,
+        performanceLogger: PerformanceLogger,
     ): FrameSource =
         CameraXCameraController(
             cameraConfig = cameraConfig,
             imageProxyToBitmapConverter = imageProxyToBitmapConverter,
             frameTransformer = frameTransformer,
             frameAnalyzer = frameAnalyzer,
+            performanceLogger = performanceLogger,
         )
 }

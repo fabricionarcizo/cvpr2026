@@ -23,9 +23,11 @@ package com.fabricionarcizo.edgevisionai.feature.detector.application
 import android.os.SystemClock
 import android.util.Log
 import dagger.hilt.android.scopes.ViewModelScoped
+import com.fabricionarcizo.edgevisionai.BuildConfig
 import com.fabricionarcizo.edgevisionai.feature.detector.domain.ports.FrameSource
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.camera.model.CameraStartResult
 import com.fabricionarcizo.edgevisionai.feature.detector.infra.camera.model.DetectorCameraStartRequest
+import com.fabricionarcizo.edgevisionai.feature.detector.infra.perf.PerformanceLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +56,7 @@ class DetectorController
     constructor(
         private val frameSource: FrameSource,
         private val frameProcessor: FrameProcessor,
+        private val performanceLogger: PerformanceLogger,
     ) {
         /**
          * Companion object containing constants for delays and logging.
@@ -169,15 +172,20 @@ class DetectorController
             return frameSource.start(wrapped).also { res ->
                 if (res is CameraStartResult.Failed) {
                     _runtimeState.update { it.copy(errorMessage = res.message) }
+                } else if (BuildConfig.ENABLE_PERFORMANCE_LOGGING) {
+                    performanceLogger.start()
                 }
             }
         }
 
         /**
-         * Stops the frame source.
+         * Stops the frame source and performance logger (if enabled).
          */
         fun stop() {
             frameSource.stop()
+            if (BuildConfig.ENABLE_PERFORMANCE_LOGGING) {
+                performanceLogger.stop()
+            }
         }
 
         /**
