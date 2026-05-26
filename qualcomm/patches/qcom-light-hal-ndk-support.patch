@@ -1,0 +1,10 @@
+--- vendor/device/qcom/vendor-common/lights/Android.bp	2026-05-21 14:29:47.552619213 +0200
++++ vendor/device/qcom/vendor-common/lights/Android.bp	2026-05-21 14:40:33.629555069 +0200
+@@ -50,6 +50,7 @@
+         "liblog",
+         "libhardware",
+         "libbinder_ndk",
++        "android.hardware.light-ndk_platform",
+     ],
+     srcs: [
+         "Lights.cpp",

@@ -1,0 +1,66 @@
+--- /home/fabricio/diff/vendor/kernel/msm-5.4/drivers/char/adsprpc.c	2026-05-25 09:19:06.667207395 +0200
++++ /home/fabricio/qcm6490/vendor/kernel/msm-5.4/drivers/char/adsprpc.c	2026-05-25 11:32:40.834840625 +0200
+@@ -3941,6 +3941,13 @@
+ 	}
+ 	inbuf.pageslen = 1;
+ 
++	/* Development only: force unsigned PD for CDSP/QNN testing */
++	if (fl->cid == CDSP_DOMAIN_ID) {
++		uproc->attrs |= FASTRPC_MODE_UNSIGNED_MODULE;
++		fl->mode |= FASTRPC_MODE_UNSIGNED_MODULE;
++		fl->apps->channel[CDSP_DOMAIN_ID].unsigned_support = true;
++	}
++
+ 	/* Untrusted apps are not allowed to offload to signedPD on DSP. */
+ 	if (fl->untrusted_process) {
+ 		VERIFY(err, uproc->attrs & FASTRPC_MODE_UNSIGNED_MODULE);
+@@ -4310,11 +4317,40 @@
+ 		goto bail;
+ 	}
+ 
++	/* Development only: force unsigned PD for CDSP/QNN testing */
++	if (fl->cid == CDSP_DOMAIN_ID) {
++		chan->unsigned_support = true;
++		chan->secure = NON_SECURE_CHANNEL;
++		fl->dev_minor = MINOR_NUM_DEV;
++
++		uproc->attrs |= FASTRPC_MODE_UNSIGNED_MODULE;
++		fl->mode |= FASTRPC_MODE_UNSIGNED_MODULE;
++
++		pr_err("FASTRPC DEBUG: early force unsigned PD for CDSP "
++			"attrs=0x%x mode=0x%x secure=%d unsigned=%d dev_minor=%d flags=0x%x\n",
++			uproc->attrs,
++			fl->mode,
++			chan->secure,
++			chan->unsigned_support,
++			fl->dev_minor,
++			init->flags);
++	}
++
++
+ 	if (chan->unsigned_support && fl->dev_minor == MINOR_NUM_DEV) {
+ 		/* Make sure third party applications */
+ 		/* can spawn only unsigned PD when */
+ 		/* channel configured as secure. */
+ 		if (chan->secure && !(uproc->attrs & FASTRPC_MODE_UNSIGNED_MODULE)) {
++
++			pr_err("FASTRPC DEBUG: rejected signed PD "
++				"cid=%d attrs=0x%x mode=0x%x secure=%d unsigned=%d\n",
++				fl->cid,
++				uproc->attrs,
++				fl->mode,
++				chan->secure,
++				chan->unsigned_support);
++
+ 			err = -ECONNREFUSED;
+ 			goto bail;
+ 		}
+@@ -6561,7 +6597,7 @@
+ 	if (err)
+ 		goto bail;
+ 	if (!dsp_query->capability)
+-		me->channel[CDSP_DOMAIN_ID].unsigned_support = false;
++		me->channel[CDSP_DOMAIN_ID].unsigned_support = true;
+ bail:
+ 	kfree(dsp_query);
+ 	return err;
