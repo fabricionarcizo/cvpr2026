@@ -1,13 +1,13 @@
-# Android 13 Compilation and Installation Guide for Qualcomm RB3 Gen2 Vision Development Kit
+# Android 15 Compilation and Installation Guide for Qualcomm RB3 Gen2 Vision Development Kit
 
 ## Overview
 
-This document describes the complete process for synchronizing, compiling, and preparing Android 13 OS for the Qualcomm RB3 Gen2 Vision Development Kit (QCM6490/QCS6490 platform).
+This document describes the complete process for synchronizing, compiling, and preparing Android 15 OS for the Qualcomm RB3 Gen2 Vision Development Kit (QCM6490/QCS6490 platform).
 
 The guide follows a real working setup validated on:
 
 - Ubuntu 20.04
-- Qualcomm Android 13 BSP
+- Qualcomm Android 15 BSP
 - QCM6490 LA.QISI.15.0.r2 release
 - Qualcomm RB3 Gen2 Vision Development Kit
 
@@ -46,7 +46,7 @@ Tested configuration:
 
 # Add Additional Swap (Recommended)
 
-Android 13 Qualcomm builds are memory intensive.
+Android 15 Qualcomm builds are memory intensive.
 
 If the machine has 16 GB RAM, additional swap is highly recommended.
 
@@ -177,7 +177,7 @@ git config --global http.'https://chipmaster2.qti.qualcomm.com'.followRedirects 
 
 # Step 3 — Download the Qualcomm BSP Package
 
-Download the Android 13 BSP package from Qualcomm CodeLinaro:
+Download the Android 15 BSP package from Qualcomm CodeLinaro:
 
 Package used in this document:
 
@@ -210,7 +210,7 @@ rm -rf qcm6490-la-5-1_ap_standard_oem-r00014.1-b11237e034cb190c1589354ca9b93004a
 
 ---
 
-# Step 5 — Navigate to Android 13 BSP
+# Step 5 — Navigate to Android 15 BSP
 
 ```bash
 cd ~/qcm6490/chipcode/QCM6490_apps_qssi15/LINUX/android
@@ -221,7 +221,7 @@ cd ~/qcm6490/chipcode/QCM6490_apps_qssi15/LINUX/android
 
 > [!NOTE]
 > This guide reflects a real working setup validated on the Qualcomm RB3 Gen2 Vision Kit.
-> Some Qualcomm BSP components intentionally combine Android 13 QSSI with vendor/platform
+> Some Qualcomm BSP components intentionally combine Android 15 QSSI with vendor/platform
 > components derived from the lahaina ecosystem. Always validate compatibility with your
 > exact BSP release and AU tags.
 
@@ -371,7 +371,7 @@ lunch qssi-userdebug
 
 ---
 
-# Step 11 — Build Android 13
+# Step 11 — Build Android 15
 
 Recommended for 32 GB RAM systems:
 
@@ -637,7 +637,7 @@ patch ~/qcm6490/vendor/kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_debug.co
 patch ~/qcm6490/vendor/kernel/msm-5.4/drivers/char/adsprpc.c < ~/qcm6490/patches/enable-cdsp-unsigned-pd-support.patch
 ```
 
-# Step 19 — Build Android 13 Vendor
+# Step 19 — Build Android 15 Vendor
 
 Recommended for 32 GB RAM systems:
 
@@ -1011,5 +1011,5 @@ htop
 - Qualcomm RB3 Gen2 Vision Development Kit
 - Qualcomm CodeLinaro
 - Android Open Source Project (AOSP)
-- Qualcomm QSSI Android 13 BSP
+- Qualcomm QSSI Android 15 BSP
 
