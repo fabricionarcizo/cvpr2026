@@ -21,6 +21,7 @@ All four notebooks share the same preprocessing and ONNX export foundations:
 | [`snpe_optimizer.ipynb`](snpe_optimizer.ipynb) | Local SNPE conversion, DLC inspection, and INT8 PTQ | `../models/snpe/*.dlc` |
 | [`qaihub_optimizer.ipynb`](qaihub_optimizer.ipynb) | Cloud QAI Hub compile, quantize, and profile jobs | `../models/qaihub/*.dlc` plus remote profiling results |
 | [`models_analysis.ipynb`](models_analysis.ipynb) | Cross-pipeline comparison, validation, and report generation | `reports/figures/*`, `reports/tables/*`, and analysis artifacts under `reports/` |
+| [`models_comparison.ipynb`](models_comparison.ipynb) | EdgeVisionAI time-series comparison of SNPE, PSNPE, and QNN inference logs | `plots/time_series_*.png` |
 
 ---
 
@@ -32,7 +33,7 @@ All four notebooks share the same preprocessing and ONNX export foundations:
    - the downloaded LibreYOLO checkpoint and ONNX export
    - the COCO validation images and generated calibration subsets
 3. For `qaihub_optimizer.ipynb`, create `docker/notebooks/.env` from the tracked
-   `docker/notebooks/.env .example` file and set `QAI_HUB_API_TOKEN`.
+   `docker/notebooks/.env.example` file and set `QAI_HUB_API_TOKEN`.
 
 ---
 
@@ -144,6 +145,33 @@ Outputs:
 - `reports/tables/*`
 - additional analysis artifacts under `reports/`
 
+### `models_comparison.ipynb`
+
+**EdgeVisionAI — Time Series Comparison: SNPE vs PSNPE vs QNN**
+
+Pipeline summary:
+
+1. Discover all `logs/EdgeVisionAI-*_log_*.csv` files in the working directory.
+2. Parse each log and detect the framework name (SNPE, PSNPE, or QNN) from the filename.
+3. Resample each recording to per-second buckets (mean of sub-second samples).
+4. Drop the first 5 warm-up seconds from each recording.
+5. Align all three recordings to their common (intersection) per-second timeline.
+6. Produce five individual time-series plots:
+   - CPU Usage (%)
+   - Memory Usage (MB)
+   - FPS
+   - Model Inference latency (ms)
+   - Total Inference latency (ms)
+7. Output a summary-statistics table for each metric.
+
+Outputs:
+
+- `plots/time_series_cpu_pct.png`
+- `plots/time_series_memory_mb.png`
+- `plots/time_series_fps.png`
+- `plots/time_series_inference_ms.png`
+- `plots/time_series_total_ms.png`
+
 ---
 
 ## Shared preprocessing contract
@@ -169,14 +197,16 @@ local quantization flow and the QAI Hub cloud quantization flow.
 ```text
 docker/notebooks/
 |- .env
-|- .env .example
+|- .env.example
 |- .gitignore
 |- README.md
 |- dataset/
 |- output/
+|- plots/
 |- subset/
 |- weights/
 |- models_analysis.ipynb
+|- models_comparison.ipynb
 |- qaihub_optimizer.ipynb
 |- qairt_optimizer.ipynb
 `- snpe_optimizer.ipynb
@@ -185,7 +215,9 @@ docker/notebooks/
 The generated directories are ignored by Git via `.gitignore`:
 
 - `dataset/`
+- `models/`
 - `output/`
+- `reports/`
 - `subset/`
 - `weights/`
 

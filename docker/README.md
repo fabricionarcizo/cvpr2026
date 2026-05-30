@@ -8,6 +8,8 @@ needed for the tracked notebooks:
 - `notebooks/qairt_optimizer.ipynb` - local QAIRT conversion and INT8 quantization
 - `notebooks/snpe_optimizer.ipynb` - local SNPE conversion, INT8 quantization, and DLC inspection
 - `notebooks/qaihub_optimizer.ipynb` - cloud compilation, quantization, and profiling through QAI Hub
+- `notebooks/models_analysis.ipynb` - cross-pipeline comparison, validation, and report generation
+- `notebooks/models_comparison.ipynb` - EdgeVisionAI time-series comparison of SNPE, PSNPE, and QNN inference logs
 
 ---
 
@@ -47,6 +49,8 @@ docker/
 |- models/
 |  `- README.md
 `- notebooks/
+   |- models_analysis.ipynb
+   |- models_comparison.ipynb
    |- qaihub_optimizer.ipynb
    |- qairt_optimizer.ipynb
    |- snpe_optimizer.ipynb
@@ -67,7 +71,7 @@ See:
 | Component | Value |
 |---|---|
 | Base image | `ubuntu:22.04` |
-| QAIRT SDK version | `2.41.0.251128` |
+| QAIRT SDK version | `2.35.0.250530` |
 | JupyterLab port | `8888` |
 | Working directory | `/workspace/notebooks` |
 | Container name | `gn-qairt-toolchain` |
@@ -121,7 +125,7 @@ The `qaihub_optimizer.ipynb` notebook requires a QAI Hub API token. The tracked
 example file is:
 
 ```text
-docker/notebooks/.env .example
+docker/notebooks/.env.example
 ```
 
 Copy it to `docker/notebooks/.env` and set:

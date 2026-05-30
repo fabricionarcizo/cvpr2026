@@ -13,6 +13,15 @@ The guide follows a real working setup validated on:
 
 This document is intended for research, Edge AI, and embedded systems development workflows.
 
+> [!NOTE]
+> The patches referenced in Step 18 and Step 22 are stored under `qualcomm/patches/`
+> in this repository. Copy them to `~/qcm6490/patches/` on your build machine before
+> following the guide:
+> ```bash
+> mkdir -p ~/qcm6490/patches
+> cp qualcomm/patches/*.patch ~/qcm6490/patches/
+> ```
+
 ---
 
 

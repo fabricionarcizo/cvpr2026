@@ -9,3 +9,6 @@
 *.ckpt
 *.pb
 *.json
+qairt/
+snpe/
+qaihub/
