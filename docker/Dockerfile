@@ -116,5 +116,22 @@ RUN \
         onnxscript==0.1.0 \
         numpy==1.26.4
 
+# Setup Android NDK.
+ENV ANDROID_NDK_VERSION="r29"
+ENV ANDROID_NDK_URL="https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip"
+ENV ANDROID_NDK_DIR="/opt/android-ndk"
+
+RUN \
+    if [ -d "${ANDROID_NDK_DIR}" ]; then \
+        echo "Android NDK version ${ANDROID_NDK_VERSION} already exists in ${ANDROID_NDK_DIR}."; \
+    else \
+        echo "Downloading Android NDK..."; \
+        curl -L -o "android-ndk.zip" "${ANDROID_NDK_URL}"; \
+        echo "Unzipping Android NDK..."; \
+        unzip -q "android-ndk.zip" -d /opt && \
+        mv /opt/android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_DIR} && \
+        rm -f "android-ndk.zip"; \
+    fi
+
 # Sets the default command to keep the container running indefinitely.
 CMD ["tail", "-f", "/dev/null"]
