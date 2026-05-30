@@ -77,10 +77,17 @@ All three notebooks reuse the same exported ONNX model.
 | `LibreYOLOXs.onnx` | All notebooks | Shared ONNX export used by all backend flows |
 | `qairt/LibreYOLOXs_fp32.dlc` | QAIRT notebook | FP32 DLC produced by `qairt-converter` |
 | `qairt/LibreYOLOXs_int8.dlc` | QAIRT notebook | INT8 DLC produced by `qairt-quantizer` |
+| `qairt/binary/LibreYOLOXsInference.cpp` | QAIRT notebook | C++ inference wrapper source |
+| `qairt/binary/LibreYOLOXsInference.h` | QAIRT notebook | C++ inference wrapper header |
+| `qairt/binary/LibreYOLOXs_int8.bin` | QAIRT notebook | Serialised INT8 model for the binary interface |
+| `qairt/binary/libLibreYOLOXs.so` | QAIRT notebook | Compiled shared library |
 | `snpe/LibreYOLOXs_fp32.dlc` | SNPE notebook | FP32 DLC produced by `snpe-onnx-to-dlc` |
 | `snpe/LibreYOLOXs_int8.dlc` | SNPE notebook | INT8 DLC produced by `snpe-dlc-quantize` |
 | `qaihub/LibreYOLOXs_fp32.dlc` | QAI Hub notebook | FP32 DLC downloaded from a cloud compile job |
 | `qaihub/LibreYOLOXs_int8.dlc` | QAI Hub notebook | INT8 DLC downloaded from cloud quantize + compile jobs |
+| `qaihub/binary/LibreYOLOXsInference.cpp` | QAI Hub notebook | C++ inference wrapper source |
+| `qaihub/binary/LibreYOLOXsInference.h` | QAI Hub notebook | C++ inference wrapper header |
+| `qaihub/binary/LibreYOLOXs_int8.bin` | QAI Hub notebook | Serialised INT8 model for the binary interface |
 
 ---
 
@@ -149,6 +156,31 @@ huggingface-cli download fabricionarcizo/LibreYOLOXs \
 
 You can also generate the same artifact layout locally by running the notebooks
 in [`../notebooks/`](../notebooks/).
+
+---
+
+## Binary inference wrappers
+
+The `qairt/binary/` and `qaihub/binary/` subdirectories contain a C++ inference
+wrapper generated alongside each INT8 DLC. These files are created locally when
+you run the respective notebook and are not Git-tracked.
+
+### `qairt/binary/`
+
+| File | Description |
+|---|---|
+| `LibreYOLOXsInference.cpp` | C++ inference wrapper source |
+| `LibreYOLOXsInference.h` | C++ inference wrapper header |
+| `LibreYOLOXs_int8.bin` | Serialised INT8 model for the binary interface |
+| `libLibreYOLOXs.so` | Compiled shared library |
+
+### `qaihub/binary/`
+
+| File | Description |
+|---|---|
+| `LibreYOLOXsInference.cpp` | C++ inference wrapper source |
+| `LibreYOLOXsInference.h` | C++ inference wrapper header |
+| `LibreYOLOXs_int8.bin` | Serialised INT8 model for the binary interface |
 
 ---
 
