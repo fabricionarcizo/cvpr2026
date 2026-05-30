@@ -49,9 +49,9 @@ RUN \
         unzip
 
 # Environment variables for the Qualcomm AI Runtime SDK.
-ENV SDK_URL="https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/2.41.0.251128/v2.41.0.251128.zip"
+ENV SDK_VERSION="2.35.0.250530"
+ENV SDK_URL="https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/${SDK_VERSION}/v${SDK_VERSION}.zip"
 ENV SDK_DIR="/qairt"
-ENV SDK_VERSION="2.41.0.251128"
 ENV ZIP_FILE="${SDK_VERSION}.zip"
 ENV QAIRT_SDK_ROOT="${SDK_DIR}/${SDK_VERSION}"
 ENV PYTHONPATH="${QAIRT_SDK_ROOT}/lib/python"

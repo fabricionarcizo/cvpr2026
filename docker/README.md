@@ -67,7 +67,7 @@ See:
 | Component | Value |
 |---|---|
 | Base image | `ubuntu:22.04` |
-| QAIRT SDK version | `2.41.0.251128` |
+| QAIRT SDK version | `2.35.0.250530` |
 | JupyterLab port | `8888` |
 | Working directory | `/workspace/notebooks` |
 | Container name | `gn-qairt-toolchain` |
