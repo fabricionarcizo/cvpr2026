@@ -97,7 +97,7 @@ RUN \
     python3 -m venv ${VIRTUAL_ENV} && \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir --upgrade pip && \
     . ${VIRTUAL_ENV}/bin/activate && \
-    "${QAIRT_SDK_ROOT}/bin/check-python-dependency" --with_optional
+    "${QAIRT_SDK_ROOT}/bin/check-python-dependency"
 
 # Installs the necessary Python packages for the project using pip.
 RUN \
