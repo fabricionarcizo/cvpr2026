@@ -45,6 +45,7 @@ RUN \
 RUN \
     apt install -y --no-install-recommends \
         ca-certificates \
+        cmake \
         curl \
         unzip
 
