@@ -1,0 +1,11 @@
+# 1. Input Normalization
+# YOLOx uses input 0-255, so we do not normalize
+# normalization1 = normalization([0.0, 0.0, 0.0], [255.0, 255.0, 255.0])
+
+# 2. Optimization Config
+# model_optimization_flavor(compression_level=1, optimization_level=1, batch_size=8)
+model_optimization_config(calibration, batch_size=8, calibset_size=1024)
+
+# 3. NMS Post-Processing
+# The JSON configuration file path must be the first positional string argument
+nms_postprocess("LibreYOLOXs_nms.json", meta_arch=yolox, engine=cpu)

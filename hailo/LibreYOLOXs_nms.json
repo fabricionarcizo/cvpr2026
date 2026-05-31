@@ -1,0 +1,31 @@
+{
+    "nms_scores_th": 0.2,
+    "nms_iou_th": 0.65,
+    "number_of_detection_heads": 3,
+    "image_dims": [640, 640],
+    "max_proposals_per_class": 100,
+    "classes": 80,
+    "bbox_decoders": [
+        {
+            "name": "bbox_decoder_8",
+            "stride": 8,
+            "reg_layer": "LibreYOLOXs/conv56",
+            "cls_layer": "LibreYOLOXs/conv54",
+            "objectness_layer": "LibreYOLOXs/conv55"
+        },
+        {
+            "name": "bbox_decoder_16",
+            "stride": 16,
+            "reg_layer": "LibreYOLOXs/conv70",
+            "cls_layer": "LibreYOLOXs/conv68",
+            "objectness_layer": "LibreYOLOXs/conv69"
+        },
+        {
+            "name": "bbox_decoder_32",
+            "stride": 32,
+            "reg_layer": "LibreYOLOXs/conv83",
+            "cls_layer": "LibreYOLOXs/conv81",
+            "objectness_layer": "LibreYOLOXs/conv82"
+        }
+    ]
+}
