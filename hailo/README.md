@@ -8,10 +8,10 @@ This directory contains configuration files and guidelines to compile, quantize,
 
 This folder contains the following configuration files and utility scripts needed for optimization:
 
-*   [`README.md`](hailo/README.md) - This documentation.
-*   [`prepare_dataset.py`](hailo/prepare_dataset.py) - Python script to download, preprocess, and pack the COCO val2017 validation dataset into a `.npy` archive for model quantization.
-*   [`LibreYOLOXs.alls`](hailo/LibreYOLOXs.alls) - Hailo Dataflow Compiler (DFC) commands script containing calibration specifications and defining the post-processing configuration mapping.
-*   [`LibreYOLOXs_nms.json`](hailo/LibreYOLOXs_nms.json) - Post-processing NMS (Non-Maximum Suppression) JSON config mapping out anchors, strides, detection heads, and dimensions for the Yolox architecture.
+*   [`README.md`](README.md) - This documentation.
+*   [`prepare_dataset.py`](prepare_dataset.py) - Python script to download, preprocess, and pack the COCO val2017 validation dataset into a `.npy` archive for model quantization.
+*   [`LibreYOLOXs.alls`](LibreYOLOXs.alls) - Hailo Dataflow Compiler (DFC) commands script containing calibration specifications and defining the post-processing configuration mapping.
+*   [`LibreYOLOXs_nms.json`](LibreYOLOXs_nms.json) - Post-processing NMS (Non-Maximum Suppression) JSON config mapping out anchors, strides, detection heads, and dimensions for the Yolox architecture.
 
 ---
 

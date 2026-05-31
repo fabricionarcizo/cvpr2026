@@ -6,18 +6,19 @@
 This repository contains the companion code for the CVPR 2026 tutorial
 *Edge AI in Action: Mastering On-Device Inference*. It demonstrates a full
 pipeline — from model optimization to real-time on-device inference — targeting
-the **Qualcomm Snapdragon** platform.
+the **Qualcomm Snapdragon** and **Hailo** platforms.
 
 ---
 
 ## What is in this repository?
 
-The repository is organized into four independent areas:
+The repository is organized into six independent areas:
 
 | Directory | Description |
 |---|---|
-| [`android/`](android/) | Four Android apps demonstrating different Qualcomm inference runtimes |
+| [`android/`](android/) | Four Android apps + llama.cpp build guide for Qualcomm Snapdragon |
 | [`docker/`](docker/) | Docker-based toolchain for model optimization (QAIRT / SNPE / QAI Hub) |
+| [`hailo/`](hailo/) | LibreYOLOXs compilation and quantization guide for Hailo-8 / Hailo-8L |
 | [`qualcomm/`](qualcomm/) | Android 15 BSP build guide for the Qualcomm RB3 Gen2 Vision Dev Kit |
 | [`analysis/PersonSense/`](analysis/PersonSense/) | Benchmark notebook and chart scripts for VLM model selection |
 
@@ -49,6 +50,30 @@ inference → postprocess → render bounding-box overlay.
 - **PersonSense** replaces the classical detector with a vision-language model
   (Qwen3-VL 2B, quantized GGUF) running through `llama.cpp` + the `mtmd`
   multimodal extension.
+
+### llama.cpp build guide
+
+The [`android/llama.cpp/`](android/llama.cpp/) directory provides a step-by-step
+guide for compiling `llama.cpp` with **Hexagon DSP/HTP**, **OpenCL GPU**, and
+**CPU** support using the Snapdragon Docker toolchain, downloading multimodal
+GGUF models from Hugging Face, and running inference directly from an `adb`
+shell — without needing the full Android app.
+
+See [`android/llama.cpp/README.md`](android/llama.cpp/README.md) for the
+complete instructions.
+
+---
+
+## Hailo-8 / Hailo-8L toolchain
+
+The [`hailo/`](hailo/) directory contains configuration files and scripts for
+compiling, quantizing, and converting the **LibreYOLOXs** model to the
+**HEF (Hailo Executable Format)** that runs on Hailo-8 and Hailo-8L accelerators
+(e.g., the Raspberry Pi 5 AI Hat). It supports both the official Hailo Software
+Suite Docker container and a native Ubuntu 22.04 LTS environment.
+
+See [`hailo/README.md`](hailo/README.md) for the full compilation and
+quantization workflow.
 
 ---
 
@@ -94,10 +119,12 @@ cvpr2026/
 │   ├── EdgeVisionAI-SNPE/          # SNPE Java AAR object detection app
 │   ├── EdgeVisionAI-PSNPE/         # Platform SNPE (+ DSP) object detection app
 │   ├── EdgeVisionAI-QNN/           # QNN JNI bridge object detection app
-│   └── EdgeVisionAI-PersonSense/   # Qwen3-VL VLM person detection app
+│   ├── EdgeVisionAI-PersonSense/   # Qwen3-VL VLM person detection app
+│   └── llama.cpp/                  # llama.cpp Snapdragon build guide
 ├── analysis/
 │   └── PersonSense/                # VLM benchmark notebook and charts
 ├── docker/                         # QAIRT / SNPE / QAI Hub optimization toolchain
+├── hailo/                          # Hailo-8/8L LibreYOLOXs compilation guide
 ├── qualcomm/                       # Android 15 BSP guide for RB3 Gen2
 ├── LICENSE
 └── README.md
@@ -127,6 +154,17 @@ described in its own README.
 | Docker Engine | 24+ |
 | Host architecture | x86_64 (Intel / AMD) required for local SNPE/QAIRT workflows |
 | Disk space | ≥ 10 GB free for the image and model artifacts |
+
+### Hailo toolchain
+
+| Requirement | Notes |
+|---|---|
+| Docker Engine | 24+ (for Hailo Software Suite container) |
+| Host architecture | x86_64 with AVX instruction set support |
+| RAM | 16 GB minimum, 32 GB recommended |
+| GPU (optional) | NVIDIA driver 525+, `nvidia-container-toolkit` |
+| Python | 3.10 (required by Hailo DFC wheels) |
+| Hailo Software Suite | 2026-04 or later — download from [Hailo Developer Zone](https://hailo.ai/developer-zone/) |
 
 ---
 
