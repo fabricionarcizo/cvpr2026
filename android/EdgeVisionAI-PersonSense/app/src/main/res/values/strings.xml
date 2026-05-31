@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EdgeVision PersonSense</string>
+
+    <!-- Status / labels -->
+    <string name="status_loading_model">Loading model…</string>
+    <string name="status_ready">Done · Tap Capture</string>
+    <string name="status_analyzing">Analysing…</string>
+    <string name="status_waiting_frame">Waiting for camera frame…</string>
+    <string name="status_failed">Analysis failed</string>
+    <string name="status_camera_denied">Camera permission denied</string>
+    <string name="status_service_disconnected">Service disconnected</string>
+    <string name="status_missing_models">Missing: %1$s</string>
+    <string name="status_load_error">Load error: %1$s</string>
+
+    <!-- Buttons -->
+    <string name="button_capture">Capture</string>
+    <string name="button_capture_again">Capture again</string>
+    <string name="button_flip_camera">Flip camera</string>
+    <string name="button_ok">OK</string>
+    <string name="button_cancel">Cancel</string>
+
+    <!-- Permission dialog -->
+    <string name="camera_permission_title">Camera Permission Required</string>
+    <string name="camera_permission_rationale_message">EdgeVision PersonSense needs camera access to detect people in real time. Please grant the permission.</string>
+
+    <!-- Result summary -->
+    <string name="result_summary_singular">%1$d person · %2$.1fs · %3$.1f tok/s</string>
+    <string name="result_summary_plural">%1$d people · %2$.1fs · %3$.1f tok/s</string>
+    <string name="result_tokens">%1$d tok / %2$.1fs gen</string>
+</resources>
